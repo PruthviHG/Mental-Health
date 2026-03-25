@@ -165,7 +165,7 @@
         audioPlayer.addEventListener('play', () => { initAudio(); if (audioContext && audioContext.state === 'suspended') audioContext.resume(); });
 
         let playlist = [], currentTrackIndex = 0; const trackDisplay = document.getElementById('track-display');
-        fetch('https://api.github.com/repos/PruthviHG/Mental-Health/contents/Only%20Musics?ref=23a58317395f9ae702323d2af47fa9d210d5de82')
+        fetch('https://api.github.com/repos/PruthviHG/Mental-Health/contents/Only%20Musics?ref=45c7487a08ee81425943396d5b4320f31836a577')
             .then(res => res.json()).then(data => {
                 playlist = data.filter(f => f.name.endsWith('.mp3') || f.name.endsWith('.wav')).map(f => ({ name: f.name.replace(/\.[^/.]+$/, ""), url: f.download_url }));
                 if(playlist.length > 0) loadTrack(0);
