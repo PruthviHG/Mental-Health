@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>PRUTHVI.INC // 2026</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { margin: 0; background: #0b0c10; color: #fff; font-family: monospace; overflow-x: hidden; overflow-y: auto; touch-action: pan-y; }
+        #canvas-container { position: fixed; top: 0; left: 0; width: 100%; height: 100vh; z-index: 0; }
+        
+        .ui-overlay { position: relative; z-index: 10; pointer-events: none; transition: opacity 0.5s ease; }
+        .section { display: flex; align-items: center; padding: 0 5%; justify-content: space-between; }
+        @media (min-width: 768px) { .section { padding: 0 10%; } }
+        
+        .data-block { border-left: 1px solid #45f3ff; padding-left: 15px; background: rgba(0,0,0,0.2); backdrop-filter: blur(5px); pointer-events: auto; }
+        ::-webkit-scrollbar { width: 0px; }
+
+        /* RESPONSIVE FLOATING AUDIO PLAYER */
+        #player-widget { position: fixed; bottom: 20px; left: 20px; z-index: 1000; display: flex; flex-direction: column-reverse; gap: 10px; pointer-events: none; }
+        #player-toggle { background: rgba(11, 12, 16, 0.85); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid #45f3ff; border-radius: 50px; padding: 10px 18px; color: #45f3ff; font-weight: bold; font-family: monospace; font-size: 10px; letter-spacing: 1px; cursor: pointer; box-shadow: 0 0 20px rgba(69, 243, 255, 0.2); transition: all 0.3s ease; pointer-events: auto; width: fit-content; }
+        #player-toggle:hover { background: #45f3ff; color: #000; box-shadow: 0 0 30px rgba(69, 243, 255, 0.6); }
+        #floating-player { background: rgba(11, 12, 16, 0.85); backdrop-filter: blur(16px); border: 1px solid rgba(69, 243, 255, 0.2); border-left: 3px solid #45f3ff; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8); padding: 15px; border-radius: 12px; width: 90vw; max-width: 280px; pointer-events: auto; transform-origin: bottom left; transform: scale(0.9) translateY(20px); opacity: 0; visibility: hidden; transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        #floating-player.open { transform: scale(1) translateY(0); opacity: 1; visibility: visible; }
+        .custom-audio { filter: invert(1) hue-rotate(180deg) grayscale(0.5); width: 100%; height: 35px; border-radius: 4px; outline: none; margin-top: 10px; }
+        .playlist-controls { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; font-size: 9px; font-weight: bold; }
+        .btn { background: transparent; color: #45f3ff; border: 1px solid rgba(69, 243, 255, 0.3); padding: 5px 10px; border-radius: 4px; cursor: pointer; transition: all 0.3s; }
+        .btn:hover { background: rgba(69, 243, 255, 0.2); border-color: #45f3ff; }
+
+        /* RESPONSIVE ARCADE HUB */
+        #game-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100vh; background: rgba(11, 12, 16, 0.95); backdrop-filter: blur(20px); z-index: 100; display: none; flex-direction: column; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.5s ease; pointer-events: auto; overflow-y: auto; padding: 20px 0; }
+        
+        #arcade-menu { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 10px; text-align: center; width: 95%; max-width: 800px; padding: 10px; max-height: 85vh; overflow-y: auto; }
+        
+        .arcade-title { grid-column: 1 / -1; font-size: 2rem; font-weight: 900; letter-spacing: 4px; color: #fff; margin-bottom: 10px; text-align: center;}
+        @media (min-width: 768px) { .arcade-title { font-size: 2.5rem; } }
+
+        .arcade-btn { background: transparent; border: 2px solid; padding: 12px 10px; font-size: 12px; font-family: monospace; font-weight: bold; letter-spacing: 1px; cursor: pointer; transition: 0.3s; text-transform: uppercase; width: 100%; display: flex; flex-direction: column; gap: 3px; align-items: center; }
+        .btn-desc { font-size: 9px; opacity: 0.7; font-weight: normal; text-align: center; }
+        
+        .btn-surge { color: #45f3ff; border-color: #45f3ff; } .btn-surge:hover { background: #45f3ff; color: #000; box-shadow: 0 0 20px #45f3ff; }
+        .btn-snake { color: #39ff14; border-color: #39ff14; } .btn-snake:hover { background: #39ff14; color: #000; box-shadow: 0 0 20px #39ff14; }
+        .btn-defend { color: #ff003c; border-color: #ff003c; } .btn-defend:hover { background: #ff003c; color: #000; box-shadow: 0 0 20px #ff003c; }
+        .btn-breaker { color: #ff00ff; border-color: #ff00ff; } .btn-breaker:hover { background: #ff00ff; color: #000; box-shadow: 0 0 20px #ff00ff; }
+        .btn-dash { color: #ffaa00; border-color: #ffaa00; } .btn-dash:hover { background: #ffaa00; color: #000; box-shadow: 0 0 20px #ffaa00; }
+        .btn-flow { color: #8A2BE2; border-color: #8A2BE2; } .btn-flow:hover { background: #8A2BE2; color: #fff; box-shadow: 0 0 20px #8A2BE2; }
+        .btn-hike { color: #2E8B57; border-color: #2E8B57; } .btn-hike:hover { background: #2E8B57; color: #fff; box-shadow: 0 0 20px #2E8B57; }
+        .btn-farm { color: #DAA520; border-color: #DAA520; } .btn-farm:hover { background: #DAA520; color: #000; box-shadow: 0 0 20px #DAA520; }
+
+        #game-container { display: none; flex-direction: column; align-items: center; position: relative; width: 95%; max-width: 800px; margin-top: 40px; }
+        
+        #game-canvas { 
+            background: #000; border-radius: 8px; box-shadow: 0 0 40px rgba(255, 255, 255, 0.1); cursor: crosshair;
+            width: 100%; aspect-ratio: 8/5; object-fit: contain; touch-action: none;
+        }
+
+        .top-nav { position: fixed; top: 15px; left: 0; width: 100%; display: flex; justify-content: space-between; padding: 0 15px; box-sizing: border-box; z-index: 101;}
+        @media (min-width: 768px) { .top-nav { top: 30px; padding: 0 50px; } }
+        
+        .nav-btn { color: #fff; font-size: 10px; letter-spacing: 1px; cursor: pointer; transition: 0.3s; border: 1px solid #fff; padding: 6px 12px; border-radius: 4px; background: rgba(0,0,0,0.5); }
+        .nav-btn:hover { background: #fff; color: #000; }
+        
+        #game-over-screen { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.85); border-radius: 8px; flex-direction: column; align-items: center; justify-content: center; z-index: 10; backdrop-filter: blur(5px); }
+
+        /* ARCADE ENTRY BUTTON */
+        .arcade-entry-btn { background: rgba(11, 12, 16, 0.6); backdrop-filter: blur(10px); border: 2px solid #ff003c; color: #ff003c; font-family: monospace; font-size: 16px; font-weight: bold; letter-spacing: 2px; padding: 15px 30px; border-radius: 8px; cursor: pointer; transition: all 0.3s ease; pointer-events: auto; box-shadow: 0 0 30px rgba(255, 0, 60, 0.2); text-transform: uppercase; text-align: center; }
+        @media (min-width: 768px) { .arcade-entry-btn { font-size: 24px; padding: 20px 50px; letter-spacing: 4px; } }
+        .arcade-entry-btn:hover { background: #ff003c; color: #0b0c10; box-shadow: 0 0 50px rgba(255, 0, 60, 0.6); transform: scale(1.05); }
+    </style>
+</head>
+<body>
+
+    <div id="canvas-container"></div>
+
+    <div id="player-widget">
+        <div id="player-toggle" onclick="togglePlayer()">🎵 AUDIO SYNC</div>
+        <div id="floating-player">
+            <div class="text-[9px] text-cyan-400 mb-2 tracking-widest font-bold">/// GITHUB REPO SYNC</div>
+            <p id="track-display" class="text-white text-xs font-bold mb-2 truncate w-full">Connecting to GitHub...</p>
+            <audio id="main-audio" controls controlsList="nodownload noplaybackrate" class="custom-audio opacity-80 hover:opacity-100 transition-opacity" crossorigin="anonymous"></audio>
+            <div class="playlist-controls">
+                <button id="prev-btn" class="btn">&lt; PREV</button>
+                <span class="text-gray-500 tracking-widest opacity-70 text-[8px]">AUDIO_SEQ</span>
+                <button id="next-btn" class="btn">NEXT &gt;</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="ui-overlay" id="main-ui">
+        <nav class="fixed top-0 w-full p-6 md:p-8 flex justify-between items-start">
+            <div class="text-[8px] md:text-[10px] tracking-[0.5em] font-bold text-cyan-300">Welcome to the space</div>
+            <div class="text-right max-w-[150px] md:max-w-[200px] text-[8px] md:text-[9px] opacity-50 italic">My mission is to fulfill my own desires with helping others in my journey.</div>
+        </nav>
+
+        <div style="height: 100vh; display: flex; align-items: center; justify-content: center;">
+            <div class="text-cyan-500 opacity-30 tracking-[0.5em] md:tracking-[1em] text-[8px] md:text-[10px] mt-[50vh] animate-pulse">/// SCROLL TO DESCEND ///</div>
+        </div>
+        
+        <div style="height: 150vh; display: flex; align-items: center; justify-content: center; pointer-events: none; padding: 0 20px;">
+            <button class="arcade-entry-btn" onclick="openArcade()">/// INITIATE ARCADE ///</button>
+        </div>
+
+        <section class="section justify-end" style="height: 100vh; align-items: flex-end; padding-bottom: 15vh;">
+            <div class="data-block py-6 md:py-10 text-right border-l-0 border-r border-cyan-400 pr-4 md:pr-6">
+                <div class="text-[8px] md:text-[10px] text-cyan-400 mb-2">/// PORTFOLIO: AIT_01</div>
+                <h2 class="text-3xl md:text-5xl font-black tracking-tighter mb-4">FRAGMENTED <br> OWNERSHIP</h2>
+                <p class="text-gray-400 text-[10px] md:text-xs max-w-[200px] md:max-w-xs leading-loose ml-auto">Taking full ownership of complex tasks. Delivering structured solutions without constant oversight.</p>
+            </div>
+        </section>
+    </div>
+
+    <div id="game-modal">
+        <div class="top-nav">
+            <div class="nav-btn" id="back-to-menu-btn" style="display:none;" onclick="showMenu()">&lt; HUB</div>
+            <div class="nav-btn" onclick="closeArcade()">EXIT SIMULATION</div>
+        </div>
+
+        <div id="arcade-menu">
+            <div class="arcade-title">CITY OF MIND GAMES</div>
+            <button class="arcade-btn btn-surge" onclick="launchGame('surge')">NEON SURGE <span class="btn-desc">Dodge red geometry</span></button>
+            <button class="arcade-btn btn-snake" onclick="launchGame('snake')">QUANTUM SNAKE <span class="btn-desc">Arrow keys to collect</span></button>
+            <button class="arcade-btn btn-defend" onclick="launchGame('defend')">PULSE DEFENDER <span class="btn-desc">Aim & shoot anomalies</span></button>
+            <button class="arcade-btn btn-breaker" onclick="launchGame('breaker')">NEON BREAKER <span class="btn-desc">Paddle physics</span></button>
+            <button class="arcade-btn btn-dash" onclick="launchGame('dash')">HYPER DASH <span class="btn-desc">Tunnel navigation</span></button>
+            <button class="arcade-btn btn-flow" onclick="launchGame('flow')">DATA LINK <span class="btn-desc">Connect matching nodes</span></button>
+            <button class="arcade-btn btn-hike" onclick="launchGame('hike')">ZEN HIKE <span class="btn-desc">WASD/Arrows to explore</span></button>
+            <button class="arcade-btn btn-farm" onclick="launchGame('farm')">NEON FARM <span class="btn-desc">Plant, wait, harvest</span></button>
+        </div>
+
+        <div id="game-container">
+            <h2 id="game-title" class="text-xl md:text-3xl font-black tracking-widest mb-1 mt-6 text-center"></h2>
+            <p id="game-instructions" class="text-[9px] md:text-xs text-gray-400 mb-4 tracking-widest uppercase text-center"></p>
+            <div style="position: relative; width: 100%;">
+                <canvas id="game-canvas" width="800" height="500"></canvas>
+                <div id="game-over-screen">
+                    <h2 id="game-over-title" class="text-3xl md:text-5xl font-black text-red-500 mb-2 md:mb-4 tracking-widest drop-shadow-lg text-center">SYSTEM FAILURE</h2>
+                    <p id="final-score" class="text-xl md:text-2xl text-white mb-6 md:mb-8 font-bold">SCORE: 0</p>
+                    <button class="arcade-btn btn-surge" style="width: auto; padding: 10px 20px;" onclick="retryGame()">RETRY SEQUENCE</button>
+                </div>
+            </div>
+            <p id="game-score" class="text-xl md:text-2xl text-white mt-4 font-bold tracking-widest">SCORE: 0</p>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // --- WIDGET TOGGLES ---
+        // ==========================================
+        function togglePlayer() { document.getElementById('floating-player').classList.toggle('open'); }
+
+        // ==========================================
+        // --- WEB AUDIO API ---
+        // ==========================================
+        let audioContext, analyser, dataArray, source, isAudioInitialized = false, currentBassPulse = 0;
+        const audioPlayer = document.getElementById('main-audio');
+
+        function initAudio() {
+            if (isAudioInitialized) return;
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            analyser = audioContext.createAnalyser(); analyser.fftSize = 256; dataArray = new Uint8Array(analyser.frequencyBinCount);
+            source = audioContext.createMediaElementSource(audioPlayer);
+            source.connect(analyser); analyser.connect(audioContext.destination); isAudioInitialized = true;
+        }
+        audioPlayer.addEventListener('play', () => { initAudio(); if (audioContext && audioContext.state === 'suspended') audioContext.resume(); });
+
+        let playlist = [], currentTrackIndex = 0; const trackDisplay = document.getElementById('track-display');
+        fetch('https://api.github.com/repos/PruthviHG/Mental-Health/contents/Only%20Musics?ref=23a58317395f9ae702323d2af47fa9d210d5de82')
+            .then(res => res.json()).then(data => {
+                playlist = data.filter(f => f.name.endsWith('.mp3') || f.name.endsWith('.wav')).map(f => ({ name: f.name.replace(/\.[^/.]+$/, ""), url: f.download_url }));
+                if(playlist.length > 0) loadTrack(0);
+            });
+        function loadTrack(index) {
+            if(!playlist[index]) return;
+            audioPlayer.src = playlist[index].url; trackDisplay.innerText = "▶ " + playlist[index].name.substring(0, 25) + "...";
+            audioPlayer.play().catch(e => console.log("Waiting for interaction..."));
+        }
+        audioPlayer.addEventListener('ended', () => nextTrack());
+        document.getElementById('next-btn').addEventListener('click', () => nextTrack());
+        document.getElementById('prev-btn').addEventListener('click', () => { currentTrackIndex = currentTrackIndex - 1 < 0 ? playlist.length - 1 : currentTrackIndex - 1; loadTrack(currentTrackIndex); });
+        function nextTrack() { currentTrackIndex = currentTrackIndex + 1 >= playlist.length ? 0 : currentTrackIndex + 1; loadTrack(currentTrackIndex); }
+
+        // ==========================================
+        // --- THREE.JS BACKGROUND ---
+        // ==========================================
+        let scene, camera, renderer, particles;
+        let count = 200000, positions = new Float32Array(count * 3), targetPositions = new Float32Array(count * 3);
+
+        function init() {
+            scene = new THREE.Scene(); camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000); camera.position.z = 5;
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true }); renderer.setSize(window.innerWidth, window.innerHeight);
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+            const geometry = new THREE.BufferGeometry();
+            for (let i = 0; i < count * 3; i++) {
+                positions[i] = (Math.random() - 0.5) * 10;
+                const theta = Math.random() * Math.PI * 2, phi = Math.acos((Math.random() * 2) - 1), r = 2;
+                if (i % 3 === 0) targetPositions[i] = r * Math.sin(phi) * Math.cos(theta);
+                if (i % 3 === 1) targetPositions[i] = r * Math.sin(phi) * Math.sin(theta);
+                if (i % 3 === 2) targetPositions[i] = r * Math.cos(phi);
+            }
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            particles = new THREE.Points(geometry, new THREE.PointsMaterial({ color: 0x45f3ff, size: 0.015, transparent: true, opacity: 0.6 }));
+            scene.add(particles);
+        }
+
+        let scrollY = 0; window.addEventListener('scroll', () => scrollY = window.scrollY);
+        let mouseX = 0, mouseY = 0, isArcadeActive = false;
+        
+        window.addEventListener('mousemove', (e) => { if(isArcadeActive) return; mouseX = (e.clientX / window.innerWidth - 0.5); mouseY = (e.clientY / window.innerHeight - 0.5); });
+        window.addEventListener('touchmove', (e) => { if(isArcadeActive) return; mouseX = (e.touches[0].clientX / window.innerWidth - 0.5); mouseY = (e.touches[0].clientY / window.innerHeight - 0.5); }, {passive: true});
+
+        function animate() {
+            requestAnimationFrame(animate); 
+            if (isAudioInitialized && !audioPlayer.paused) {
+                analyser.getByteFrequencyData(dataArray);
+                let bassSum = 0; for(let i = 0; i < 10; i++) bassSum += dataArray[i];
+                currentBassPulse = ((bassSum / 10) / 255) * 2.0; 
+            } else { currentBassPulse = Math.max(0, currentBassPulse - 0.05); }
+            
+            if(!isArcadeActive) { 
+                const posArr = particles.geometry.attributes.position.array; let totalExplosion = (scrollY * 0.005) + currentBassPulse; 
+                for (let i = 0; i < count * 3; i++) posArr[i] += ((targetPositions[i] * (1 + totalExplosion)) - posArr[i]) * 0.15;
+                particles.geometry.attributes.position.needsUpdate = true;
+                particles.rotation.y += 0.002 + (currentBassPulse * 0.01); particles.rotation.x += mouseY * 0.05; particles.rotation.z += mouseX * 0.05;
+                particles.scale.set(1 + currentBassPulse*0.1, 1 + currentBassPulse*0.1, 1 + currentBassPulse*0.1);
+            }
+            renderer.render(scene, camera);
+        }
+        init(); animate(); window.addEventListener('resize', () => { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
+
+        // ==========================================
+        // --- RESPONSIVE 8-GAME ARCADE ENGINE ---
+        // ==========================================
+        const modal = document.getElementById('game-modal'), ui = document.getElementById('main-ui'), menu = document.getElementById('arcade-menu'), gameContainer = document.getElementById('game-container');
+        const canvas = document.getElementById('game-canvas'), ctx = canvas.getContext('2d'), gameOverScreen = document.getElementById('game-over-screen');
+        let gameLoopId, currentGame = null, score = 0, frameCount = 0, isGameOver = false;
+        
+        let pX = 400, pY = 250, entities = [], bullets = [], bricks = [], sDir = {x: 10, y: 0}, sTrail = [], apple = {x: 200, y: 200}, ball = {x: 400, y: 400, vx: 5, vy: -5, r: 6};
+        let flowGrid = [], flowPath = [], flowColors = ['#ff003c', '#45f3ff', '#39ff14'], activeColor = null;
+        let hikePlayer = {x: 400, y: 250}, hikeCamera = {x:0, y:0}, hikeItems = [], hikeTrees = [], keys = {w:false, a:false, s:false, d:false, up:false, down:false, left:false, right:false};
+        let farmGrid = [];
+
+        function openArcade() { isArcadeActive = true; modal.style.display = 'flex'; setTimeout(() => modal.style.opacity = '1', 10); ui.style.opacity = '0'; showMenu(); }
+        function closeArcade() { nukeMemory(); gameOverScreen.style.display = 'none'; modal.style.opacity = '0'; setTimeout(() => modal.style.display = 'none', 500); ui.style.opacity = '1'; isArcadeActive = false; }
+        function showMenu() { nukeMemory(); gameOverScreen.style.display = 'none'; gameContainer.style.display = 'none'; menu.style.display = 'grid'; document.getElementById('back-to-menu-btn').style.display = 'none'; document.body.style.cursor = 'default'; }
+        function nukeMemory() { cancelAnimationFrame(gameLoopId); currentGame = null; isGameOver = false; entities = []; bullets = []; sTrail = []; bricks = []; flowGrid = []; hikeItems = []; farmGrid = []; ctx.clearRect(0, 0, canvas.width, canvas.height); }
+        
+        function gameOver(customMessage = "SYSTEM FAILURE", customColor = "#ff003c") { 
+            isGameOver = true; cancelAnimationFrame(gameLoopId); 
+            document.getElementById('game-over-title').innerText = customMessage; document.getElementById('game-over-title').style.color = customColor;
+            document.getElementById('final-score').innerText = "FINAL SCORE: " + score; gameOverScreen.style.display = 'flex'; 
+        }
+        function retryGame() { gameOverScreen.style.display = 'none'; launchGame(currentGame); }
+
+        function launchGame(game) {
+            nukeMemory(); gameOverScreen.style.display = 'none';
+            menu.style.display = 'none'; gameContainer.style.display = 'flex'; document.getElementById('back-to-menu-btn').style.display = 'block';
+            currentGame = game; score = 0; frameCount = 0; pX = 400; pY = 250; isGameOver = false;
+            
+            if(game === 'surge') { setTitle("NEON SURGE", "#45f3ff", "Touch/Move to dodge."); } 
+            else if(game === 'snake') { setTitle("QUANTUM SNAKE", "#39ff14", "Keyboard Arrows to collect data."); sDir = {x: 10, y: 0}; for(let i=0; i<5; i++) sTrail.push({x: pX - i*10, y: pY}); spawnApple(); } 
+            else if(game === 'defend') { setTitle("PULSE DEFENDER", "#ff003c", "Tap/Click to shoot anomalies."); } 
+            else if(game === 'breaker') { setTitle("NEON BREAKER", "#ff00ff", "Touch/Move to bounce the ball."); ball = {x: 400, y: 300, vx: 5, vy: 5, r: 6}; for(let r=0; r<6; r++) for(let c=0; c<10; c++) bricks.push({x: c*75 + 25, y: r*30 + 30, w: 70, h: 20, active: true}); } 
+            else if(game === 'dash') { setTitle("HYPER DASH", "#ffaa00", "Touch/Move to navigate the tunnel."); }
+            else if(game === 'flow') { setTitle("DATA LINK", "#8A2BE2", "Drag to connect matching nodes."); initFlow(); }
+            else if(game === 'hike') { setTitle("ZEN HIKE", "#2E8B57", "WASD/Arrows to explore."); initHike(); }
+            else if(game === 'farm') { setTitle("NEON FARM", "#DAA520", "Tap to plant. Wait. Tap to harvest."); initFarm(); }
+            
+            gameLoopId = requestAnimationFrame(gameRouter);
+        }
+
+        function setTitle(title, color, desc) { document.getElementById('game-title').innerText = title; document.getElementById('game-title').style.color = color; document.getElementById('game-instructions').innerText = desc; canvas.style.borderColor = color; }
+
+        // UNIVERSAL POINTER MAPPING (Mouse + Touch)
+        function updateGamePointer(clientX, clientY) {
+            if(isGameOver) return;
+            const r = canvas.getBoundingClientRect();
+            pX = (clientX - r.left) * (canvas.width / r.width);
+            pY = (clientY - r.top) * (canvas.height / r.height);
+        }
+
+        canvas.addEventListener('mousemove', (e) => updateGamePointer(e.clientX, e.clientY));
+        canvas.addEventListener('touchmove', (e) => { e.preventDefault(); updateGamePointer(e.touches[0].clientX, e.touches[0].clientY); }, {passive: false});
+
+        function handleCanvasTap(clientX, clientY) {
+            if(isGameOver) return;
+            const r = canvas.getBoundingClientRect();
+            const mx = (clientX - r.left) * (canvas.width / r.width);
+            const my = (clientY - r.top) * (canvas.height / r.height);
+            
+            if(currentGame === 'defend') { const angle = Math.atan2(my - 250, mx - 400); bullets.push({x: 400, y: 250, vx: Math.cos(angle)*10, vy: Math.sin(angle)*10}); }
+            if(currentGame === 'farm') clickFarm(mx, my);
+            if(currentGame === 'flow') { isDrawing = true; pX = mx; pY = my; checkFlowNode(mx, my); }
+        }
+
+        canvas.addEventListener('mousedown', (e) => handleCanvasTap(e.clientX, e.clientY));
+        canvas.addEventListener('touchstart', (e) => { e.preventDefault(); handleCanvasTap(e.touches[0].clientX, e.touches[0].clientY); }, {passive: false});
+        
+        canvas.addEventListener('mouseup', () => { if(currentGame === 'flow') { isDrawing = false; activeColor = null; }});
+        canvas.addEventListener('touchend', () => { if(currentGame === 'flow') { isDrawing = false; activeColor = null; }});
+
+        // Keyboard setup for Snake/Hike
+        window.addEventListener('keydown', (e) => { 
+            if(isGameOver) return; const k = e.key.toLowerCase();
+            if(['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright'].includes(k)) {
+                if(k==='w'||k==='arrowup') keys.up = true; if(k==='s'||k==='arrowdown') keys.down = true;
+                if(k==='a'||k==='arrowleft') keys.left = true; if(k==='d'||k==='arrowright') keys.right = true;
+            }
+            if(currentGame === 'snake') {
+                if(keys.up && sDir.y === 0) sDir = {x: 0, y: -10}; if(keys.down && sDir.y === 0) sDir = {x: 0, y: 10};
+                if(keys.left && sDir.x === 0) sDir = {x: -10, y: 0}; if(keys.right && sDir.x === 0) sDir = {x: 10, y: 0};
+            }
+        });
+        window.addEventListener('keyup', (e) => { 
+            const k = e.key.toLowerCase();
+            if(k==='w'||k==='arrowup') keys.up = false; if(k==='s'||k==='arrowdown') keys.down = false;
+            if(k==='a'||k==='arrowleft') keys.left = false; if(k==='d'||k==='arrowright') keys.right = false;
+        });
+
+        // GAME ROUTER
+        function gameRouter() {
+            if(!currentGame || isGameOver) return; 
+            if(currentGame === 'hike') { ctx.fillStyle = '#1a2e24'; }
+            else if(currentGame === 'farm') { ctx.fillStyle = '#111'; }
+            else { ctx.fillStyle = currentGame === 'snake' ? 'rgba(0, 0, 0, 1)' : 'rgba(0, 0, 0, 0.3)'; }
+            ctx.fillRect(0, 0, canvas.width, canvas.height); 
+            
+            if(currentGame === 'surge') playSurge(); 
+            else if(currentGame === 'snake') playSnake(); else if(currentGame === 'defend') playDefend(); 
+            else if(currentGame === 'breaker') playBreaker(); else if(currentGame === 'dash') playDash();
+            else if(currentGame === 'flow') playFlow(); else if(currentGame === 'hike') playHike(); else if(currentGame === 'farm') playFarm();
+
+            document.getElementById('game-score').innerText = "SCORE: " + score; if(!isGameOver) { frameCount++; gameLoopId = requestAnimationFrame(gameRouter); }
+        }
+
+        // --- THE GAMES ---
+        function playSurge() {
+            ctx.beginPath(); ctx.arc(pX, pY, 8, 0, Math.PI * 2); ctx.fillStyle = '#45f3ff'; ctx.shadowBlur = 15; ctx.shadowColor = '#45f3ff'; ctx.fill(); ctx.shadowBlur = 0;
+            if(frameCount % 20 === 0) { let size = Math.random() * 20 + 10, x = Math.random() < 0.5 ? -size : 800 + size; entities.push({ x: x, y: Math.random() * 500, s: size, vx: (x < 0 ? 1 : -1) * (Math.random() * 4 + 2 + (score/500)) }); }
+            for(let i = entities.length - 1; i >= 0; i--) { let e = entities[i]; e.x += e.vx; ctx.fillStyle = '#ff003c'; ctx.shadowBlur = 10; ctx.shadowColor = '#ff003c'; ctx.fillRect(e.x, e.y, e.s, e.s); ctx.shadowBlur = 0; if(Math.hypot(pX - (e.x + e.s/2), pY - (e.y + e.s/2)) < 8 + e.s/2) { gameOver(); return; } if(e.x < -100 || e.x > 900) entities.splice(i, 1); } score++;
+        }
+        function playSnake() {
+            if(frameCount % 4 === 0) { pX += sDir.x; pY += sDir.y; sTrail.unshift({x: pX, y: pY}); sTrail.pop(); if(pX < 0 || pX >= 800 || pY < 0 || pY >= 500 || sTrail.slice(1).some(s => s.x === pX && s.y === pY)) { gameOver(); return; } if(Math.abs(pX - apple.x) < 10 && Math.abs(pY - apple.y) < 10) { score += 100; sTrail.push({...sTrail[sTrail.length-1]}); spawnApple(); } }
+            ctx.fillStyle = '#ff003c'; ctx.shadowBlur = 15; ctx.shadowColor = '#ff003c'; ctx.fillRect(apple.x, apple.y, 10, 10); ctx.shadowBlur = 0; ctx.fillStyle = '#39ff14'; ctx.shadowBlur = 10; ctx.shadowColor = '#39ff14'; sTrail.forEach(s => ctx.fillRect(s.x, s.y, 10, 10)); ctx.shadowBlur = 0;
+        }
+        function spawnApple() { apple = { x: Math.floor(Math.random() * 79) * 10, y: Math.floor(Math.random() * 49) * 10 }; }
+        function playDefend() {
+            ctx.beginPath(); ctx.arc(400, 250, 15, 0, Math.PI * 2); ctx.fillStyle = '#45f3ff'; ctx.shadowBlur = 20; ctx.shadowColor = '#45f3ff'; ctx.fill(); ctx.shadowBlur = 0;
+            if(frameCount % 40 === 0) { let angle = Math.random() * Math.PI * 2; entities.push({ x: 400 + Math.cos(angle)*450, y: 250 + Math.sin(angle)*450, angle: angle }); }
+            ctx.fillStyle = '#fff'; for(let i = bullets.length - 1; i >= 0; i--) { let b = bullets[i]; b.x += b.vx; b.y += b.vy; ctx.beginPath(); ctx.arc(b.x, b.y, 4, 0, Math.PI*2); ctx.fill(); if(b.x < 0 || b.x > 800 || b.y < 0 || b.y > 500) bullets.splice(i, 1); }
+            ctx.fillStyle = '#ff003c'; ctx.shadowBlur = 10; ctx.shadowColor = '#ff003c';
+            for(let i = entities.length - 1; i >= 0; i--) { let e = entities[i]; e.x -= Math.cos(e.angle) * (1 + score/1000); e.y -= Math.sin(e.angle) * (1 + score/1000); ctx.fillRect(e.x - 10, e.y - 10, 20, 20); if(Math.hypot(e.x - 400, e.y - 250) < 20) { gameOver(); return; } for(let j = bullets.length - 1; j >= 0; j--) { if(Math.hypot(e.x - bullets[j].x, e.y - bullets[j].y) < 15) { score += 50; entities.splice(i, 1); bullets.splice(j, 1); break; } } } ctx.shadowBlur = 0;
+        }
+        function playBreaker() {
+            let paddleX = Math.max(0, Math.min(800 - 100, pX - 50)); ctx.fillStyle = '#45f3ff'; ctx.shadowBlur = 15; ctx.shadowColor = '#45f3ff'; ctx.fillRect(paddleX, 470, 100, 10); ctx.shadowBlur = 0;
+            ball.x += ball.vx; ball.y += ball.vy; if(ball.x - ball.r < 0 || ball.x + ball.r > 800) ball.vx *= -1; if(ball.y - ball.r < 0) ball.vy *= -1; if(ball.y > 500) { gameOver(); return; } 
+            if(ball.y + ball.r > 470 && ball.x > paddleX && ball.x < paddleX + 100) { ball.vy = -Math.abs(ball.vy); ball.vx = ((ball.x - (paddleX + 50)) / 50) * 6; }
+            ctx.beginPath(); ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI*2); ctx.fillStyle = '#ff00ff'; ctx.shadowBlur = 15; ctx.shadowColor = '#ff00ff'; ctx.fill(); ctx.shadowBlur = 0;
+            ctx.fillStyle = '#ff00ff'; ctx.shadowBlur = 10; ctx.shadowColor = '#ff00ff'; let activeBricks = 0;
+            for(let i=0; i<bricks.length; i++) { let b = bricks[i]; if(b.active) { activeBricks++; ctx.fillRect(b.x, b.y, b.w, b.h); if(ball.x > b.x && ball.x < b.x + b.w && ball.y - ball.r < b.y + b.h && ball.y + ball.r > b.y) { b.active = false; ball.vy *= -1; score += 10; } } } ctx.shadowBlur = 0;
+            if(activeBricks === 0) { ball.vx *= 1.2; ball.vy *= 1.2; bricks.forEach(b => b.active = true); } 
+        }
+        function playDash() {
+            ctx.beginPath(); ctx.moveTo(pX, 450); ctx.lineTo(pX - 15, 480); ctx.lineTo(pX + 15, 480); ctx.closePath(); ctx.fillStyle = '#ffaa00'; ctx.shadowBlur = 15; ctx.shadowColor = '#ffaa00'; ctx.fill(); ctx.shadowBlur = 0;
+            if(frameCount % (Math.max(10, 30 - Math.floor(score/100))) === 0) { entities.push({x: Math.random() * 700, y: -20, w: Math.random() * 100 + 50, h: 20}); }
+            ctx.fillStyle = '#ff003c'; ctx.shadowBlur = 10; ctx.shadowColor = '#ff003c';
+            for(let i = entities.length - 1; i >= 0; i--) { let e = entities[i]; e.y += 5 + (score / 200); ctx.fillRect(e.x, e.y, e.w, e.h); if(pX > e.x && pX < e.x + e.w && 450 < e.y + e.h && 480 > e.y) { gameOver(); return; } if(e.y > 500) entities.splice(i, 1); }
+            ctx.shadowBlur = 0; score++;
+        }
+
+        // --- NEW SAFE SPACE GAMES ---
+        function initFlow() {
+            flowGrid = []; flowPath = [];
+            let nodes = [ {x: 1, y: 1, c: '#ff003c'}, {x: 5, y: 5, c: '#ff003c'}, {x: 1, y: 5, c: '#45f3ff'}, {x: 5, y: 1, c: '#45f3ff'} ];
+            for(let c=0; c<7; c++) {
+                flowGrid[c] = [];
+                for(let r=0; r<7; r++) { let isNode = nodes.find(n => n.x === c && n.y === r); flowGrid[c][r] = { x: c*70 + 150, y: r*70 + 10, color: isNode ? isNode.c : null, isEnd: !!isNode, pathColor: null }; }
+            }
+        }
+        function checkFlowNode(mx, my) {
+            for(let c=0; c<7; c++) for(let r=0; r<7; r++) { let cell = flowGrid[c][r]; if(Math.hypot(mx - (cell.x+35), my - (cell.y+35)) < 30 && cell.isEnd) { activeColor = cell.color; flowPath = [{c,r}]; } }
+        }
+        function playFlow() {
+            for(let c=0; c<7; c++) for(let r=0; r<7; r++) {
+                let cell = flowGrid[c][r]; ctx.strokeStyle = 'rgba(255,255,255,0.1)'; ctx.lineWidth = 1; ctx.strokeRect(cell.x, cell.y, 70, 70);
+                if(cell.isEnd) { ctx.fillStyle = cell.color; ctx.beginPath(); ctx.arc(cell.x+35, cell.y+35, 20, 0, Math.PI*2); ctx.fill(); } else if(cell.pathColor) { ctx.fillStyle = cell.pathColor; ctx.fillRect(cell.x+20, cell.y+20, 30, 30); }
+            }
+            if(isDrawing && activeColor) {
+                let c = Math.floor((pX - 150)/70), r = Math.floor((pY - 10)/70);
+                if(c>=0 && c<7 && r>=0 && r<7) {
+                    let last = flowPath[flowPath.length-1];
+                    if(last && (Math.abs(last.c - c) + Math.abs(last.r - r) === 1)) { 
+                        let cell = flowGrid[c][r];
+                        if(!cell.pathColor || cell.pathColor === activeColor) { if(!cell.isEnd || (cell.isEnd && cell.color === activeColor)) { cell.pathColor = activeColor; flowPath.push({c,r}); score += 5; } }
+                    }
+                }
+            }
+            if(score > 500) gameOver("NETWORK RESTORED", "#45f3ff"); 
+        }
+
+        function initHike() { hikePlayer = {x: 400, y: 250}; hikeCamera = {x:0, y:0}; hikeItems = []; hikeTrees = []; for(let i=0; i<100; i++) hikeTrees.push({x: Math.random()*2000 - 600, y: Math.random()*2000 - 600, s: Math.random()*20+20}); for(let i=0; i<20; i++) hikeItems.push({x: Math.random()*1500 - 350, y: Math.random()*1500 - 350, active: true}); }
+        function playHike() {
+            let speed = 3; if(keys.up) hikePlayer.y -= speed; if(keys.down) hikePlayer.y += speed; if(keys.left) hikePlayer.x -= speed; if(keys.right) hikePlayer.x += speed;
+            hikeCamera.x += (hikePlayer.x - canvas.width/2 - hikeCamera.x) * 0.1; hikeCamera.y += (hikePlayer.y - canvas.height/2 - hikeCamera.y) * 0.1;
+            ctx.save(); ctx.translate(-hikeCamera.x, -hikeCamera.y);
+            ctx.fillStyle = '#0a1712'; hikeTrees.forEach(t => { ctx.fillRect(t.x, t.y, t.s, t.s*1.5); });
+            ctx.fillStyle = '#45f3ff'; ctx.shadowBlur = 20; ctx.shadowColor = '#45f3ff';
+            hikeItems.forEach(i => { if(i.active) { ctx.beginPath(); ctx.arc(i.x, i.y + Math.sin(frameCount*0.05)*5, 5, 0, Math.PI*2); ctx.fill(); if(Math.hypot(hikePlayer.x - i.x, hikePlayer.y - i.y) < 20) { i.active = false; score += 50; } } }); ctx.shadowBlur = 0;
+            ctx.fillStyle = '#fff'; ctx.fillRect(hikePlayer.x-10, hikePlayer.y-10, 20, 20); ctx.restore();
+            if(score >= 1000) gameOver("PEAK REACHED", "#39ff14");
+        }
+
+        function initFarm() { farmGrid = []; for(let c=0; c<5; c++) { farmGrid[c] = []; for(let r=0; r<5; r++) { farmGrid[c][r] = { state: 0, timer: 0, x: c*80 + 225, y: r*80 + 50 }; } } }
+        function clickFarm(mx, my) { for(let c=0; c<5; c++) for(let r=0; r<5; r++) { let cell = farmGrid[c][r]; if(mx > cell.x && mx < cell.x+70 && my > cell.y && my < cell.y+70) { if(cell.state === 0) { cell.state = 1; cell.timer = 0; } else if(cell.state === 2) { cell.state = 0; score += 100; } } } }
+        function playFarm() {
+            for(let c=0; c<5; c++) for(let r=0; r<5; r++) {
+                let cell = farmGrid[c][r];
+                if(cell.state === 1) { cell.timer++; if(cell.timer > 200) cell.state = 2; ctx.fillStyle = '#2E8B57'; } else if(cell.state === 2) { ctx.fillStyle = '#DAA520'; ctx.shadowBlur = 15; ctx.shadowColor = '#DAA520'; } else { ctx.fillStyle = '#222'; ctx.shadowBlur = 0; } 
+                ctx.fillRect(cell.x, cell.y, 70, 70); ctx.shadowBlur = 0;
+            }
+            if(score >= 2000) gameOver("HARVEST COMPLETE", "#DAA520");
+        }
+    </script>
+</body>
+</html>
