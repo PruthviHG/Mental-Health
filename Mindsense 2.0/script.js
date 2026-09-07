@@ -106,7 +106,7 @@ liveVoiceBtn.addEventListener("click", () => {
 // ==========================================
 // --- ELEVENLABS TTS INTEGRATION ---
 // ==========================================
-const ELEVENLABS_API_KEY = "sk_c74d71bbc3f74bec8eb73c9e0a456ad0722595613523b494";
+const ELEVENLABS_API_KEY = "sk_144ed235c94b16e719f70cd2dd17769736fc53ec08d40e8a";
 const VOICE_ID = "Hk1pjkVooUoQl1NOtXFH"; 
 const nexusVoicePlayer = new Audio();
 
