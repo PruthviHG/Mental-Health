@@ -50,6 +50,8 @@ if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
         liveVoiceBtn.innerHTML = '<i class="fas fa-satellite-dish"></i>';
         messageInput.placeholder = "Listening to your voice... 🤍";
         
+        muteForSpeech(); // Mute background music while listening
+
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             mediaRecorder = new MediaRecorder(stream);
@@ -57,6 +59,7 @@ if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
             
             mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
             mediaRecorder.onstop = async () => {
+                unmuteAfterSpeech(); // Restore background music when done recording
                 const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
                 await analyzeAudioEmotion(audioBlob);
                 stream.getTracks().forEach(track => track.stop());
@@ -95,6 +98,7 @@ liveVoiceBtn.addEventListener("click", () => {
         liveVoiceBtn.classList.remove("live-active");
         liveVoiceBtn.innerHTML = '<i class="fas fa-microphone"></i>';
         try { speechRecognition.stop(); } catch(e) {}
+        unmuteAfterSpeech(); // Failsafe restore
     }
 });
 
@@ -102,8 +106,8 @@ liveVoiceBtn.addEventListener("click", () => {
 // ==========================================
 // --- ELEVENLABS TTS INTEGRATION ---
 // ==========================================
-const ELEVENLABS_API_KEY = "sk_144ed235c94b16e719f70cd2dd17769736fc53ec08d40e8a";
-const VOICE_ID = "6XqZ51WS52WRfKKU0zBy"; 
+const ELEVENLABS_API_KEY = "sk_c74d71bbc3f74bec8eb73c9e0a456ad0722595613523b494";
+const VOICE_ID = "Hk1pjkVooUoQl1NOtXFH"; 
 const nexusVoicePlayer = new Audio();
 
 async function playElevenLabsVoice(text) {
@@ -128,12 +132,10 @@ async function playElevenLabsVoice(text) {
         const blob = await response.blob();
         nexusVoicePlayer.src = URL.createObjectURL(blob);
         
-        const activeBgMusic = activeAudio === 1 ? audio1 : audio2;
-        let originalVolume = activeBgMusic.volume;
-        if (!activeBgMusic.paused) activeBgMusic.volume = 0.1;
+        muteForSpeech(); // Mute background music while AI speaks
         
         nexusVoicePlayer.onended = () => { 
-            if (!activeBgMusic.paused) activeBgMusic.volume = originalVolume; 
+            unmuteAfterSpeech(); // Restore background music when AI finishes
             if (isLiveModeActive && window.location.protocol !== 'file:') {
                 try { speechRecognition.start(); } catch(e) {}
             }
@@ -328,7 +330,10 @@ setTimeout(() => {
 // ==========================================
 function togglePlayer() { document.getElementById('floating-player').classList.toggle('open'); }
 
+const BASE_VOLUME = 0.15; // Mild, calm volume level
 let audioContext, analyser, dataArray, source1, source2, isAudioInitialized = false, currentBassPulse = 0;
+let userPausedMusic = false; // Tracks if user manually clicked pause
+let isTemporarilyMuted = false; // Tracks if music is ducking for Voice
 
 let audio1 = new Audio(); audio1.crossOrigin = "anonymous";
 let audio2 = new Audio(); audio2.crossOrigin = "anonymous";
@@ -366,12 +371,35 @@ fetch('https://api.github.com/repos/PruthviHG/Mental-Health/contents/Only%20Musi
         playlist = data.filter(f => f.name.match(/\.(mp3|wav|m4a)$/i)).map(f => ({ name: f.name.replace(/\.[^/.]+$/, ""), url: f.download_url }));
         if(playlist.length === 0) throw new Error("Empty Repo");
         audio1.src = playlist[0].url; trackDisplay.innerText = "▶ " + playlist[0].name.substring(0, 25) + "...";
+        attemptAutoplay();
     })
     .catch(err => {
         console.warn("Using Fallback Audio"); playlist = fallbackPlaylist;
         document.getElementById('audio-status').innerText = "/// FALLBACK TRACKS READY";
         audio1.src = playlist[0].url; trackDisplay.innerText = "▶ " + playlist[0].name.substring(0, 25) + "...";
+        attemptAutoplay();
     });
+
+function attemptAutoplay() {
+    audio1.volume = BASE_VOLUME;
+    let playPromise = audio1.play();
+    if (playPromise !== undefined) {
+        playPromise.then(() => {
+            isMusicPlaying = true;
+            userPausedMusic = false;
+            syncPlayPauseUI();
+            initAudio();
+        }).catch(error => {
+            // Autoplay blocked by browser. Wait for the user's very first click anywhere.
+            document.body.addEventListener('click', function startAutoplay() {
+                if (!isMusicPlaying && !userPausedMusic) {
+                    toggleMainPlay();
+                    document.body.removeEventListener('click', startAutoplay);
+                }
+            }, { once: true });
+        });
+    }
+}
 
 function syncPlayPauseUI() {
     const icon = isMusicPlaying ? '<i class="fas fa-pause"></i>' : '<i class="fas fa-play"></i>';
@@ -381,9 +409,34 @@ function syncPlayPauseUI() {
 function toggleMainPlay() {
     initAudio(); if (audioContext && audioContext.state === 'suspended') audioContext.resume();
     const current = activeAudio === 1 ? audio1 : audio2;
-    if (isMusicPlaying) { current.pause(); isMusicPlaying = false; } 
-    else { current.play(); isMusicPlaying = true; }
+    if (isMusicPlaying) { 
+        current.pause(); 
+        isMusicPlaying = false; 
+        userPausedMusic = true; // User explicitly turned it off
+    } 
+    else { 
+        current.volume = BASE_VOLUME;
+        current.play(); 
+        isMusicPlaying = true; 
+        userPausedMusic = false; // User explicitly turned it on
+    }
     syncPlayPauseUI();
+}
+
+function muteForSpeech() {
+    if (isMusicPlaying && !userPausedMusic) {
+        const current = activeAudio === 1 ? audio1 : audio2;
+        current.volume = 0; // Duck volume to 0
+        isTemporarilyMuted = true;
+    }
+}
+
+function unmuteAfterSpeech() {
+    if (isMusicPlaying && !userPausedMusic && isTemporarilyMuted) {
+        const current = activeAudio === 1 ? audio1 : audio2;
+        current.volume = BASE_VOLUME; // Restore calm volume
+        isTemporarilyMuted = false;
+    }
 }
 
 function crossfadeTrack(index) {
@@ -397,17 +450,17 @@ function crossfadeTrack(index) {
 
     fadingIn.src = playlist[index].url;
     fadingIn.volume = 0;
-    if(isMusicPlaying) fadingIn.play();
+    if(isMusicPlaying && !isTemporarilyMuted) fadingIn.play();
 
-    const steps = 20; const stepTime = 1500 / steps;
+    const steps = 20; const stepTime = 1500 / steps; const fadeStep = BASE_VOLUME / steps;
     
     clearInterval(fadeInterval);
     fadeInterval = setInterval(() => {
-        if (fadingOut.volume > 0.05) fadingOut.volume = Math.max(0, fadingOut.volume - 1/steps);
-        if (fadingIn.volume < 0.95) fadingIn.volume = Math.min(1, fadingIn.volume + 1/steps);
+        if (fadingOut.volume > fadeStep) fadingOut.volume -= fadeStep; else fadingOut.volume = 0;
+        if (fadingIn.volume < BASE_VOLUME - fadeStep) fadingIn.volume += fadeStep; else fadingIn.volume = BASE_VOLUME;
         
-        if (fadingIn.volume >= 0.95) {
-            fadingIn.volume = 1; fadingOut.volume = 0; fadingOut.pause();
+        if (fadingIn.volume >= BASE_VOLUME) {
+            fadingIn.volume = BASE_VOLUME; fadingOut.volume = 0; fadingOut.pause();
             activeAudio = activeAudio === 1 ? 2 : 1;
             clearInterval(fadeInterval);
         }
@@ -462,7 +515,7 @@ function animate3D() {
     requestAnimationFrame(animate3D); 
     if(isArcadeActive || isRoomsActive) return;
 
-    if (isAudioInitialized && isMusicPlaying) {
+    if (isAudioInitialized && isMusicPlaying && !isTemporarilyMuted) {
         analyser.getByteFrequencyData(dataArray);
         let bassSum = 0; for(let i = 0; i < 10; i++) bassSum += dataArray[i];
         currentBassPulse = ((bassSum / 10) / 255) * 2.0; 
@@ -627,7 +680,7 @@ let gameLoopId, currentGame = null, score = 0, frameCount = 0, isGameOver = fals
 let pX = 400, pY = 250, entities = [], bullets = [], bricks = [], sDir = {x: 10, y: 0}, sTrail = [], apple = {x: 200, y: 200}, ball = {x: 400, y: 400, vx: 5, vy: -5, r: 6};
 let flowGrid = [], flowPath = [], activeColor = null, isDrawing = false, hikePlayer = {x: 400, y: 250}, hikeCamera = {x:0, y:0}, hikeItems = [], hikeTrees = [], keys = {w:false, a:false, s:false, d:false, up:false, down:false, left:false, right:false}, farmGrid = [];
 
-// Reaction Game Variables (Extremely accurate performance.now timestamps)
+// Reaction Game Variables
 let rxState = 0, rxTriggerTime = 0, rxResult = 0, rxTimeoutId = null;
 
 const yogaBgImg = new Image();
@@ -703,7 +756,6 @@ window.addEventListener('keyup', (e) => { const k=e.key.toLowerCase(); if(k==='w
 function gameRouter() {
     if(!currentGame || isGameOver) return; 
     
-    // Reaction game overrides the default background layout
     if (currentGame !== 'reaction') {
         ctx.fillStyle = currentGame === 'hike' ? '#1a2e24' : (currentGame === 'farm' ? '#111' : (currentGame === 'snake' ? 'rgba(0,0,0,1)' : 'rgba(0,0,0,0.3)')); 
         ctx.fillRect(0, 0, canvas.width, canvas.height); 
@@ -721,7 +773,6 @@ function gameRouter() {
     else if(currentGame === 'yoga') playYoga();
     else if(currentGame === 'reaction') playReaction();
     
-    // Custom score display logic
     if (currentGame === 'breathe' || currentGame === 'yoga') {
         document.getElementById('game-score').innerText = "SESSION TIME: " + Math.floor(frameCount / 60) + "s";
     } else if (currentGame === 'reaction') {
@@ -733,7 +784,6 @@ function gameRouter() {
     if(!isGameOver) { frameCount++; gameLoopId = requestAnimationFrame(gameRouter); }
 }
 
-// --- NEW REACTION TIME LOGIC ---
 function initReaction() { 
     clearTimeout(rxTimeoutId); 
     rxState = 1; 
@@ -778,7 +828,6 @@ function playReaction() {
         ctx.fillStyle = '#aaa'; ctx.font = '16px monospace'; ctx.fillText("Click anywhere to try again", 400, 280); 
     } 
 }
-// -------------------------------
 
 const yogaPoses = [
     {name: "NECK ROLLS", desc: "Slowly roll your neck in gentle circles."},
