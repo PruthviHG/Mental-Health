@@ -1,0 +1,13 @@
+{
+  "name": "mindsence",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Local AI mental-wellness companion",
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "lint:syntax": "for f in js/*.js; do node --check $f || exit 1; done"
+  },
+  "devDependencies": {
+    "jsdom": "^24.1.0"
+  }
+}
