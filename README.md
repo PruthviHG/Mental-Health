@@ -12,17 +12,19 @@ Everything runs on your own machine: the LLM (Ollama), speech-emotion model, and
 
 | Area | What it does |
 |---|---|
-| **Chat companion** | Streaming conversation with a local LLM (`llama3.2:3b` via Ollama) using a warm "best friend" persona. Replies mirror your message length so it feels like texting, not lecturing. |
+| **Chat companion** | Streaming conversation with a local LLM (`llama3.2:3b` via Ollama's `/api/chat`). It **remembers the conversation** (rolling window) and replies in a warm, texting-style voice that mirrors your message length. |
+| **Crisis safety net** | Messages that suggest self-harm or suicide **never reach the LLM**. Mindsence shows a fixed, caring response with helplines, switches to a no-jokes "care mode" for the next turns, and a **NEED HELP?** button is always in the header. |
 | **Live voice chat** | Tap the mic to talk. Browser Speech Recognition transcribes you, and the AI answers out loud. Speaking over the AI interrupts it. |
-| **Voice emotion detection** | Your recorded audio is sent to a local Wav2Vec2 model (`ehcalabres/wav2vec2-lg-xlsr-en-speech-emotion-recognition`). The detected emotion is injected into the system prompt so the reply tone adapts. |
+| **Voice emotion detection** | Your recorded audio is sent to a local Wav2Vec2 model (`ehcalabres/wav2vec2-lg-xlsr-en-speech-emotion-recognition`). Emotion and confidence are shown as a badge and passed to the model only when the reading is fresh and confident enough. |
 | **Healing voice (TTS)** | Neural TTS through `edge-tts` (`en-GB-SoniaNeural`, slowed rate and lowered pitch). Bracket cues like `[sigh]`, `[hmm]`, `[laugh]` become spoken fillers and are hidden from the chat text. |
 | **Idle check-ins** | After 5 minutes of silence, Mindsence gently checks in ("Did you have food yet?"). |
 | **3D background** | A Three.js particle sphere that pulses with the bass of the music and reacts to your mouse. Particle count scales down on mobile. |
 | **Audio sync player** | Ambient nature/lofi tracks loaded from this repo's `Only Musics/` folder through the GitHub API, with crossfade, next/prev, and automatic muting while the AI speaks. |
 | **Rooms** | Full-screen looping video environments (golden hour, study, lofi, rain, space, nature, anime, treehouse, bath, and more) with a firefly particle overlay and a mini music player. |
-| **Games hub** | 11 canvas mini-games for decompressing: Neon Surge, Neon Reflex, Quantum Snake, Pulse Defender, Neon Breaker, Hyper Dash, Data Link, Zen Hike, Neon Farm, **Box Breathing**, and **Desk Yoga**. |
+| **Games hub** | 11 canvas mini-games for decompressing: Neon Surge, Neon Reflex, Quantum Snake, Pulse Defender, Neon Breaker, Hyper Dash, **Block Blast**, Zen Hike, Neon Farm, **Box Breathing**, and **Desk Yoga**. |
 | **Export log** | Download your conversation as a text file. |
-| **Feedback widget** | In-app feedback form that is logged locally by the backend. |
+| **Feedback widget** | In-app feedback form, validated and stored locally by the backend (JSON Lines). |
+| **Service status** | The header shows whether Ollama and the voice backend are reachable (ONLINE / TEXT ONLY / LLM OFFLINE). |
 | **Mobile friendly** | Responsive layout, safe text sizing, and touch-aware canvases. |
 
 ---
@@ -30,9 +32,10 @@ Everything runs on your own machine: the LLM (Ollama), speech-emotion model, and
 ## 🧱 Tech Stack
 
 - **Frontend:** HTML, Tailwind CSS (CDN), vanilla JavaScript, Three.js r128, Canvas 2D, Web Speech API, Web Audio API, Font Awesome
-- **Backend:** Python, Flask, Flask-CORS
+- **Backend:** Python, Flask, Flask-CORS (lazy-loaded models, env-based config)
 - **AI / ML:** Ollama (`llama3.2:3b`), Hugging Face Transformers (Wav2Vec2), PyTorch, librosa
 - **Voice:** edge-tts (Microsoft neural voices)
+- **Quality:** pytest (backend), Node test runner + jsdom (frontend), GitHub Actions CI
 
 ---
 
@@ -54,9 +57,10 @@ Everything runs on your own machine: the LLM (Ollama), speech-emotion model, and
 
 | Endpoint | Method | Body | Returns |
 |---|---|---|---|
-| `/analyze-emotion` | POST | `multipart/form-data` with `audio` | `{ "emotion": "<label>" }` |
-| `/tts` | POST | `{ "text": "..." }` | `audio/mpeg` stream |
-| `/feedback` | POST | `{ "email": "...", "text": "..." }` | `{ "status": "success" }` and appends to `feedback_log.txt` |
+| `/health` | GET | n/a | `{ "status": "ok", "emotion_model_loaded": bool }` |
+| `/analyze-emotion` | POST | `multipart/form-data` with `audio` | `{ "emotion", "confidence", "scores" }` |
+| `/tts` | POST | `{ "text": "..." }` (max 1000 chars) | `audio/mpeg` |
+| `/feedback` | POST | `{ "email": "...", "text": "..." }` | `{ "status": "success" }`; appends to `feedback_log.jsonl` |
 
 ---
 
@@ -64,12 +68,30 @@ Everything runs on your own machine: the LLM (Ollama), speech-emotion model, and
 
 ```
 Mental-Health/
-├── index.html        # UI layout: chat, player, Rooms modal, Games modal
-├── style.css         # Neon theme, player, arcade, rooms, mic animation
-├── script.js         # Chat/LLM streaming, voice, emotion, TTS, 3D, rooms, games
-├── app.py            # Flask backend: emotion recognition, TTS, feedback
-├── assets/           # Room videos (space/, nature/, rain/, anime/, ...)
-├── Only Musics/      # Ambient audio loaded by the player
+├── index.html            # UI layout: chat, player, Rooms, Games, help modal
+├── style.css             # Neon theme, player, arcade, rooms, crisis/help styles
+├── js/
+│   ├── config.js         # All URLs/model/tuning in one place (overridable)
+│   ├── core.js           # Global state + interruption (stopAI)
+│   ├── safety.js         # Crisis detection, helplines, help modal
+│   ├── voice.js          # Speech recognition + voice-emotion client
+│   ├── tts.js            # Text-to-speech playback
+│   ├── llm.js            # Ollama chat, history, system prompt, status check
+│   ├── chat.js           # Chat UI and send flow
+│   ├── audio.js          # Ambient music engine
+│   ├── scene3d.js        # Three.js particle background
+│   ├── rooms.js          # Video rooms + fireflies
+│   ├── mime.js           # MIME: small chat popup inside Rooms
+│   ├── games.js          # 11 mini-games
+│   ├── idle.js           # Idle check-ins
+│   └── feedback.js       # Feedback widget
+├── app.py                # Flask backend: emotion, TTS, feedback, health
+├── tests/                # pytest (backend) + node/jsdom (frontend)
+├── requirements.txt / requirements-dev.txt
+├── .env.example          # Backend settings
+├── .github/workflows/ci.yml
+├── assets/               # Room videos
+├── Only Musics/          # Ambient audio
 └── README.md
 ```
 
@@ -99,11 +121,11 @@ python -m venv venv
 # Windows: venv\Scripts\activate
 source venv/bin/activate
 
-pip install flask flask-cors torch librosa transformers edge-tts
+pip install -r requirements.txt
 python app.py
 ```
 
-The backend starts on `http://0.0.0.0:5000`.
+The backend starts on `http://127.0.0.1:5000` (local only by default; see `.env.example`).
 
 ### 3. Set up the local LLM
 
@@ -131,7 +153,7 @@ Open **http://localhost:8000** in Chrome or Edge and allow microphone access.
 - **Chat:** type and press send. Start typing anywhere on the page and the input focuses automatically.
 - **Voice mode:** click the 🎤 button. It pulses while live. Talk naturally; speaking while the AI is replying interrupts it.
 - **Music:** click **🎵 AUDIO SYNC** (bottom-left) for the player.
-- **Rooms:** header → **ROOMS** → pick an environment. Use the arrow to go back and the step button for the next scene.
+- **Rooms:** header → **ROOMS** → pick an environment. Use the arrow to go back and the step button for the next scene. Press **MIME** to chat (text or mic) in a small popup over the room without leaving it.
 - **Games:** header → **GAMES** → pick a game. Try **Box Breathing** (4-4-4-4) or **Desk Yoga** when you need a reset.
 - **Export:** header → **EXPORT LOG** (desktop).
 - **Feedback:** the ✉️ button (bottom-right).
@@ -142,8 +164,24 @@ Open **http://localhost:8000** in Chrome or Edge and allow microphone access.
 
 All the knobs are at the top of `script.js` and `app.py`:
 
-| Setting | File | Default |
-|---|---|---|
+Frontend settings live in `js/config.js`. Override any of them before the scripts load:
+
+```html
+<script>window.MINDSENCE_CONFIG = { model: "mistral:7b", maxHistoryMessages: 30 };</script>
+```
+
+| Setting | Default |
+|---|---|
+| `model` | `llama3.2:3b` |
+| `ollamaUrl` / `backendUrl` | `http://127.0.0.1:11434` / `http://127.0.0.1:5000` |
+| `temperature` / `topP` / `maxReplyTokens` | `0.7` / `0.9` / `220` |
+| `maxHistoryMessages` | `24` (rolling memory sent to the model) |
+| `emotionMinConfidence` / `emotionMaxAgeMs` | `0.4` / `30000` |
+| `crisisModeTurns` | `10` |
+
+Backend settings are environment variables (voice, rate, pitch, CORS origins, port, feedback file); see `.env.example`. The personality is `SYSTEM_PROMPT` in `js/llm.js`.
+
+---|---|---|
 | `LOCAL_MODEL` | `script.js` | `llama3.2:3b` |
 | `OLLAMA_API_URL` | `script.js` | `http://127.0.0.1:11434/api/generate` |
 | `LOCAL_BACKEND_URL` | `script.js` | `http://127.0.0.1:5000` |
@@ -158,7 +196,8 @@ All the knobs are at the top of `script.js` and `app.py`:
 
 - The chat LLM, emotion model, and TTS backend all run locally.
 - Exception: `edge-tts` calls Microsoft's online neural voice service to synthesize speech, so the text of AI replies is sent there. Browser speech recognition in Chrome may also use Google's servers.
-- Feedback is stored only in `feedback_log.txt` on the machine running the backend.
+- Conversation memory lives only in the browser tab (cleared on refresh or with **CLEAR**). Nothing is persisted.
+- Feedback is stored only in `feedback_log.jsonl` on the machine running the backend. The backend binds to `127.0.0.1` and restricts CORS to local origins by default.
 
 ---
 
@@ -168,6 +207,7 @@ All the knobs are at the top of `script.js` and `app.py`:
 |---|---|
 | `[LOCAL MODEL OFFLINE - CHECK OLLAMA]` in chat | Make sure `ollama serve` is running and the model is pulled. |
 | No voice / mic does nothing | Serve over `http://localhost`, use Chrome or Edge, and allow mic permission. |
+| Emotion badge never appears | Install `ffmpeg` (browsers record WebM/MP4 audio) and check `/health` shows the backend is up. |
 | No AI voice | Check that `python app.py` is running and you're online (edge-tts needs internet). |
 | Emotion always "neutral" | Backend isn't reachable on port 5000, or the emotion model is still downloading. |
 | Rooms or music empty | The player and Rooms fetch file lists from the GitHub API, which is rate-limited when unauthenticated. Wait a bit and refresh. |
@@ -175,13 +215,28 @@ All the knobs are at the top of `script.js` and `app.py`:
 
 ---
 
+## 🧪 Testing
+
+```bash
+pip install -r requirements-dev.txt && pytest -q      # backend (no GPU or model download needed)
+npm install && npm test                                # frontend: crisis detection + chat flow in jsdom
+```
+
+CI runs both on every push.
+
+## 🛡️ Safety design
+
+- Crisis detection (`js/safety.js`) runs **before** the LLM, so a small local model can never respond to self-harm statements with a joke. It is deliberately broad: a false alarm costs one caring message.
+- The system prompt forbids joking about self-harm, diagnosing, or discouraging human support, and the app repeatedly says it is an AI, not therapy.
+- This is a safety net, not a clinical tool. Keyword matching can miss indirect language. Helpline numbers should be re-verified periodically.
+
 ## 🗺️ Roadmap
 
-- [ ] Persistent, optional local conversation memory
-- [ ] Built-in crisis-keyword detection with helpline suggestions
-- [ ] Multi-language voice and emotion support
+- [ ] Optional encrypted local conversation memory across sessions
+- [ ] Multi-language voice, chat and crisis detection
 - [ ] Mood journal and weekly emotion trends
 - [ ] Packaged one-click launcher for the backend and Ollama
+- [ ] Self-host the room videos and music instead of using the GitHub API
 
 ---
 
