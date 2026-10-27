@@ -1,0 +1,8 @@
+# OPTIONAL: voice emotion detection (Wav2Vec2). Large download (~2 GB incl. PyTorch); the app works fine without it.
+-r requirements.txt
+torch>=2.1
+transformers>=4.40
+librosa>=0.10
+numpy>=1.24
+safetensors>=0.4
+huggingface_hub>=0.23
