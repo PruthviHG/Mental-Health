@@ -1,6 +1,7 @@
 // Integration test: loads the real index.html + the chat-related scripts in jsdom
 // with stubbed network/audio, then drives the UI like a user.
 const test = require('node:test');
+const { jsFile } = require('./_paths');
 const assert = require('node:assert');
 const fs = require('fs');
 const path = require('path');
@@ -8,18 +9,17 @@ const vm = require('vm');
 const { JSDOM } = require('jsdom');
 
 const ROOT = path.join(__dirname, '..');
-const SCRIPTS = ['config', 'core', 'safety', 'voice', 'tts', 'llm', 'chat', 'mime'];
+const SCRIPTS = ['config', 'locales', 'locales2', 'locales3', 'locales4', 'i18n', 'core', 'safety', 'stories_i18n', 'stories', 'voice', 'simple', 'tts', 'webllm', 'llm', 'companion', 'commands', 'chat', 'mime'];
 
-function ndjson(tokens) {
-    const lines = tokens.map(t => JSON.stringify({ message: { role: 'assistant', content: t }, done: false }) + '\n');
-    lines.push(JSON.stringify({ done: true }) + '\n');
-    // Split mid-line on purpose to prove the stream parser buffers partial JSON.
-    const joined = lines.join('');
-    const mid = Math.floor(joined.length / 2);
-    return [joined.slice(0, mid), joined.slice(mid)];
+// /chat streams plain UTF-8 text. Split the bytes mid-way on purpose (this can cut a multi-byte character in
+// half) to prove the client decodes across chunk boundaries.
+function textChunks(tokens) {
+    const bytes = Buffer.from(tokens.join(''), 'utf8');
+    const mid = Math.floor(bytes.length / 2) + 1;
+    return [bytes.subarray(0, mid), bytes.subarray(mid)];
 }
 
-function setup(replyTokens) {
+function setup(replyTokens, opts = {}) {
     const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8').replace(/<script[\s\S]*?<\/script>/g, '');
     const dom = new JSDOM(html, { runScripts: 'outside-only', url: 'http://localhost:8000/' });
     const w = dom.window;
@@ -29,24 +29,23 @@ function setup(replyTokens) {
     w.TextDecoder = TextDecoder;
     w.Audio = class { constructor() { this.paused = true; this.src = ''; } pause() {} play() { return Promise.resolve(); } };
     w.Element.prototype.scrollTo = function () {};
-    w.fetch = async (url, opts = {}) => {
-        calls.push({ url: String(url), body: opts.body ? JSON.parse(opts.body) : null });
-        if (String(url).endsWith('/api/chat')) {
-            const body = JSON.parse(opts.body);
-            if (body.messages.length === 0) return { ok: true, body: { getReader: () => ({ read: async () => ({ done: true }) }) } };
-            const chunks = ndjson(replyTokens).map(c => enc.encode(c));
+    w.fetch = async (url, init = {}) => {
+        calls.push({ url: String(url), body: init.body ? JSON.parse(init.body) : null });
+        if (String(url).endsWith('/chat')) {
+            if (opts.chatStatus) return { ok: false, status: opts.chatStatus, json: async () => ({ error: 'no_llm' }) };
+            const chunks = textChunks(replyTokens);
             let i = 0;
-            return { ok: true, body: { getReader: () => ({ read: async () => i < chunks.length ? { value: chunks[i++], done: false } : { done: true } }) } };
+            return { ok: true, status: 200, body: { getReader: () => ({ read: async () => i < chunks.length ? { value: chunks[i++], done: false } : { done: true } }) } };
         }
-        return { ok: false, json: async () => ({}) };   // /health, /api/tags, /tts, ...
+        return { ok: false, json: async () => ({}) };   // /health, /tts, ...
     };
 
     const ctx = dom.getInternalVMContext();
     for (const name of SCRIPTS) {
-        new vm.Script(fs.readFileSync(path.join(ROOT, 'js', `${name}.js`), 'utf8'), { filename: `${name}.js` }).runInContext(ctx);
+        new vm.Script(fs.readFileSync(jsFile(name), 'utf8'), { filename: `${name}.js` }).runInContext(ctx);
     }
     // Voice output is out of scope here
-    w.eval('playLocalVoice = async () => {}; var __spoken = []; playLocalVoice = async (t) => { __spoken.push(t); };');
+    w.eval('function muteForSpeech(){}; function unmuteAfterSpeech(){}; var __spoken = []; playLocalVoice = (t) => { __spoken.push(t); }; beginSpeechStream = () => {}; feedSpeech = () => {}; endSpeechStream = (t) => { __spoken.push(t); };');
     return { w, calls };
 }
 
@@ -71,12 +70,12 @@ test('streams a reply, hides vocal cues, and keeps conversation history', async 
     assert.strictEqual(last, 'I hear you. Want to talk?');            // cue stripped, stream reassembled across split chunks
 
     await send(w, 'it was about my exams');
-    const chatCalls = calls.filter(c => c.url.endsWith('/api/chat') && c.body.messages.length);
+    const chatCalls = calls.filter(c => c.url.endsWith('/chat'));
     const second = chatCalls[1].body.messages;
-    assert.strictEqual(second[0].role, 'system');
-    assert.deepStrictEqual(second.slice(1).map(m => m.role), ['user', 'assistant', 'user']);   // memory works
-    assert.match(second[1].content, /rough day/);
-    assert.match(second[2].content, /I hear you/);
+    assert.deepStrictEqual(second.map(m => m.role), ['user', 'assistant', 'user']);   // memory works; no system prompt leaves the browser
+    assert.match(second[0].content, /rough day/);
+    assert.match(second[1].content, /I hear you/);
+    assert.strictEqual(chatCalls[1].body.context.lang, 'en');
     } finally { w.close(); }
 });
 
@@ -85,7 +84,7 @@ test('crisis messages bypass the LLM and show helplines', async () => {
     try {
     await send(w, "I don't want to live anymore");
 
-    assert.strictEqual(calls.filter(c => c.url.endsWith('/api/chat') && c.body.messages.length).length, 0);
+    assert.strictEqual(calls.filter(c => c.url.endsWith('/chat')).length, 0);
     const bubble = w.document.querySelector('.crisis-bubble');
     assert.ok(bubble, 'crisis bubble rendered');
     assert.match(bubble.textContent, /14416/);
@@ -93,8 +92,8 @@ test('crisis messages bypass the LLM and show helplines', async () => {
 
     // Follow-up goes to the LLM, but in care mode (no jokes)
     await send(w, 'i feel so alone');
-    const chat = calls.filter(c => c.url.endsWith('/api/chat') && c.body.messages.length).pop();
-    assert.match(chat.body.messages[0].content, /No jokes or teasing/);
+    const chat = calls.filter(c => c.url.endsWith('/chat')).pop();
+    assert.strictEqual(chat.body.context.crisis, true);                // server adds the "no jokes" instruction
     } finally { w.close(); }
 });
 
@@ -102,8 +101,8 @@ test('typed messages never include stale voice-emotion text', async () => {
     const { w, calls } = setup(['ok']);
     try {
     await send(w, 'hello there');
-    const chat = calls.find(c => c.url.endsWith('/api/chat') && c.body.messages.length);
-    assert.doesNotMatch(chat.body.messages[0].content, /Voice tone analysis/);
+    const chat = calls.find(c => c.url.endsWith('/chat'));
+    assert.strictEqual(chat.body.context.emotion, undefined);
     } finally { w.close(); }
 });
 
@@ -112,8 +111,8 @@ test('a fresh, confident voice emotion is passed to the model', async () => {
     try {
     w.eval("lastEmotion = { label: 'sad', confidence: 0.82, scores: {}, ts: Date.now() };");
     await send(w, 'hello there');
-    const chat = calls.find(c => c.url.endsWith('/api/chat') && c.body.messages.length);
-    assert.match(chat.body.messages[0].content, /sound sad \(82% confidence\)/);
+    const chat = calls.find(c => c.url.endsWith('/chat'));
+    assert.deepStrictEqual(chat.body.context.emotion, { label: 'sad', confidence: 0.82 });
     } finally { w.close(); }
 });
 
@@ -140,10 +139,104 @@ test('MIME popup chats in a small panel, mirrors the main chat, and never shows 
         assert.strictEqual(mainAi, 'Hi from the room');
         assert.ok(panel.textContent.includes('hello from the room'));
         assert.notStrictEqual(doc.getElementById('main-ui').style.opacity, '1');   // main UI was not re-shown/touched
-        assert.strictEqual(calls.filter(c => c.url.endsWith('/api/chat') && c.body.messages.length).length, 1);
+        assert.strictEqual(calls.filter(c => c.url.endsWith('/chat')).length, 1);
 
         mimeBtn.click();                                            // close
         assert.strictEqual(panel.style.display, 'none');
         assert.strictEqual(w.eval('mimeBox'), null);
+    } finally { w.close(); }
+});
+
+test('Hindi reply streams intact even when a byte chunk splits a character', async () => {
+    const { w, calls } = setup(['नमस्ते ', 'दोस्त, ', 'मैं यहीं हूँ।']);
+    try {
+        await send(w, 'मुझे बहुत अकेलापन लग रहा है');
+        const last = [...w.document.querySelectorAll('#chatbox .ai-text')].pop().textContent;
+        assert.strictEqual(last, 'नमस्ते दोस्त, मैं यहीं हूँ।');
+        assert.strictEqual(calls.find(c => c.url.endsWith('/chat')).body.context.lang, 'hi');   // auto-detected
+    } finally { w.close(); }
+});
+
+test('a crisis message in Hindi gets the Hindi safety text and never reaches the model', async () => {
+    const { w, calls } = setup(['should not be used']);
+    try {
+        await send(w, 'मैं मरना चाहता हूँ');
+        assert.strictEqual(calls.filter(c => c.url.endsWith('/chat')).length, 0);
+        const bubble = w.document.querySelector('.crisis-bubble');
+        assert.ok(bubble);
+        assert.match(bubble.textContent, /अकेले नहीं उठाना/);
+        assert.match(bubble.textContent, /14416/);
+    } finally { w.close(); }
+});
+
+test('language picker forces the conversation language', async () => {
+    const { w, calls } = setup(['ok']);
+    try {
+        const sel = w.document.getElementById('lang-select');
+        sel.value = 'kn';
+        sel.dispatchEvent(new w.Event('change'));
+        assert.strictEqual(w.document.documentElement.lang, 'kn');
+        assert.match(w.document.getElementById('messageInput').placeholder, /ಬರೆಯಿರಿ/);
+        await send(w, 'hello');                                   // English text, but Kannada was chosen
+        assert.strictEqual(calls.find(c => c.url.endsWith('/chat')).body.context.lang, 'kn');
+    } finally { w.close(); }
+});
+
+test('no model configured: simple mode answers instead of showing an error, and says so once', async () => {
+    const { w } = setup(['unused'], { chatStatus: 503 });
+    try {
+        await send(w, 'I feel so alone');
+        await sleep(600);                                          // simple mode types the reply out
+        let texts = [...w.document.querySelectorAll('#chatbox .ai-text')].map(e => e.textContent);
+        assert.match(texts[texts.length - 1], /simple mode/i);
+        assert.doesNotMatch(texts[texts.length - 1], /\[/);       // no red error text
+        await send(w, 'it is a rough week');
+        await sleep(400);
+        texts = [...w.document.querySelectorAll('#chatbox .ai-text')].map(e => e.textContent);
+        assert.doesNotMatch(texts[texts.length - 1], /simple mode/i);   // the note is shown only once
+    } finally { w.close(); }
+});
+
+test('the voice-emotion badge has a real place in the page and actually shows/hides', async () => {
+    const { w } = setup(['ok']);
+    try {
+        await sleep(50);                                        // let the page's own unawaited startup checks (e.g. checkStatus) settle first
+        const badge = w.document.getElementById('emotion-badge');
+        assert.ok(badge, '#emotion-badge must exist in index.html for setEmotionBadge() to have anything to update');
+        assert.ok(badge.classList.contains('hidden'), 'starts hidden until a voice reading comes in');
+
+        w.setEmotionBadge({ label: 'sad', confidence: 0.8 });
+        assert.ok(!badge.classList.contains('hidden'));
+        assert.match(badge.textContent, /SAD/);
+        assert.match(badge.textContent, /80%/);
+
+        w.setEmotionBadge(null);
+        assert.ok(badge.classList.contains('hidden'));
+    } finally { w.close(); }
+});
+
+test('the YouTube beat follows the real reported playback time/volume, not just a free-running clock', async () => {
+    const { w } = setup(['ok']);
+    try {
+        await sleep(50);
+        w.startGenre({ key: 'electronic', label: 'NCS Electronic', list: 'PLRBp0Fe2GpgnZOm5rCopMAOYhZCPoUyO5' });  // a static playlist id: no network search needed
+        const iframe = w.document.querySelector('#yt-dock iframe');
+        assert.ok(iframe, 'startGenre should have opened the dock with a video iframe');
+        assert.strictEqual(iframe.className, 'keep-hue');
+
+        // jsdom does not actually deliver a same-realm iframe's postMessage back to the parent, so dispatch the
+        // equivalent MessageEvent directly -- this still exercises the real window "message" handler in companion.js.
+        const send = (info) => w.dispatchEvent(new w.MessageEvent('message', { data: JSON.stringify({ event: 'infoDelivery', info }), source: iframe.contentWindow }));
+        send({ playerState: 1, currentTime: 42.5, volume: 80, muted: false });
+        await sleep(20);
+        assert.strictEqual(w.ytCurrentTime, 42.5);
+        assert.strictEqual(w.ytVolumeFrac, 0.8);
+
+        send({ playerState: 1, currentTime: 50, volume: 80, muted: true });   // user muted the dock
+        await sleep(20);
+        assert.strictEqual(w.ytVolumeFrac, 0, 'muted should mean no visual "sound" to dance to, same as true silence');
+
+        w.closeYtDock();
+        assert.strictEqual(w.ytCurrentTime, null);
     } finally { w.close(); }
 });

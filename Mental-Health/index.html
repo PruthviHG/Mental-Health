@@ -4,12 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0, shrink-to-fit=no">
     <title>Mindsence - Safe Space</title>
-    <meta name="description" content="Mindsence: a private, local AI companion for mental wellness with voice, calming rooms and mindful games.">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <meta name="description" content="Mindsence: a gentle AI companion for mental wellness in 14 languages, with voice, calming rooms and mindful games.">
+    <link rel="preload" href="assets/vendor/fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="stylesheet" href="assets/vendor/fonts/fonts.css">
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="assets/css/extras.css">
+    <link rel="stylesheet" href="assets/css/tailwind.css">
+    <link rel="stylesheet" href="assets/css/icons.css">
 </head>
 <body class="flex flex-col h-screen selection:bg-cyan-500 selection:text-black">
 
@@ -25,10 +26,14 @@
                 </div>
             </div>
             <div class="flex items-center gap-2 md:gap-4">
-                <button onclick="openHelpModal()" class="text-[8px] font-mono tracking-widest text-amber-300 border border-amber-300/60 hover:bg-amber-300 hover:text-black px-2 py-1 rounded transition-all" aria-label="Get help now">NEED HELP?</button>
-                <button onclick="exportChat()" class="hidden md:block text-[8px] font-mono tracking-widest text-cyan-400 border border-cyan-400/50 hover:bg-cyan-400 hover:text-black px-2 py-1 rounded transition-all">EXPORT LOG</button>
-                <button onclick="openArcade()" class="text-[8px] font-mono tracking-widest text-cyan-400 border border-cyan-400/50 hover:bg-cyan-400/10 px-2 py-1 rounded transition-all">GAMES</button>
-                <button onclick="openRooms()" class="text-[8px] font-mono tracking-widest text-cyan-400 border border-cyan-400/50 hover:bg-cyan-400/10 px-2 py-1 rounded transition-all">ROOMS</button>
+                <select id="lang-select" aria-label="Language" title="Language" class="text-[10px] font-mono text-cyan-400 bg-transparent border border-cyan-400/50 rounded px-1 py-1 max-w-[96px] outline-none"></select>
+                <button data-authonly id="ai-btn" onclick="startOnDeviceAi()" class="hidden text-[8px] font-mono tracking-widest text-emerald-300 border border-emerald-300/60 hover:bg-emerald-300 hover:text-black px-2 py-1 rounded transition-all" data-i18n="nAi" title="Runs privately on your device. No account, no key. Downloads once (about 1 GB).">GET SMARTER AI (1 GB, once)</button>
+                <button onclick="openHelpModal()" class="keep-hue text-[8px] font-mono tracking-widest text-amber-300 border border-amber-300/60 hover:bg-amber-300 hover:text-black px-2 py-1 rounded transition-all" aria-label="Get help now" data-i18n="nHelp">NEED HELP?</button>
+                <button data-authonly onclick="exportChat()" class="hidden md:block text-[8px] font-mono tracking-widest text-cyan-400 border border-cyan-400/50 hover:bg-cyan-400 hover:text-black px-2 py-1 rounded transition-all" data-i18n="nExport">EXPORT LOG</button>
+                <button data-authonly onclick="openArcade()" class="text-[8px] font-mono tracking-widest text-cyan-400 border border-cyan-400/50 hover:bg-cyan-400/10 px-2 py-1 rounded transition-all" data-i18n="nGames">GAMES</button>
+                <button data-authonly onclick="openAbout()" class="text-[8px] font-mono tracking-widest text-cyan-400 border border-cyan-400/50 hover:bg-cyan-400/10 px-2 py-1 rounded transition-all" title="About Mindsence and the team" aria-haspopup="dialog" data-i18n="nAbout">ABOUT</button>
+                <button data-authonly onclick="openRooms()" class="text-[8px] font-mono tracking-widest text-cyan-400 border border-cyan-400/50 hover:bg-cyan-400/10 px-2 py-1 rounded transition-all" data-i18n="nRooms">ROOMS</button>
+                <button data-authonly id="user-chip" onclick="signOut()" class="hidden text-[8px] font-mono tracking-widest text-cyan-400 border border-cyan-400/50 hover:bg-cyan-400/10 px-2 py-1 rounded transition-all max-w-[130px] truncate" title="Sign out"></button>
                 <div class="flex items-center gap-1 md:gap-2">
                     <div id="status-dot" class="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_8px_#45f3ff] animate-pulse"></div>
                     <span class="text-[8px] md:text-[10px] text-cyan-400/70 font-mono hidden sm:inline tracking-widest" id="status-label">ONLINE</span>
@@ -45,17 +50,24 @@
                 <div class="absolute -inset-0.5 bg-cyan-500 rounded-lg blur opacity-10 group-focus-within:opacity-30 transition duration-500"></div>
                 <div class="relative flex items-end gap-1 md:gap-2 bg-[#0b0c10]/95 rounded-lg p-1.5 md:p-2 border border-cyan-500/30 shadow-2xl focus-within:border-cyan-400 transition-colors">
                     
-                    <button id="liveVoiceBtn" class="flex-none p-2 rounded bg-transparent border border-cyan-500 text-cyan-400 hover:bg-cyan-500 hover:text-black transition-colors h-[40px] w-[40px] md:h-[44px] md:w-[44px] flex items-center justify-center" title="Live Speech Chat" aria-label="Toggle live voice chat">
+                    <button id="liveVoiceBtn" title="Talk to Mindsence (press Space, or Alt+V)" class="flex-none p-2 rounded bg-transparent border border-cyan-500 text-cyan-400 hover:bg-cyan-500 hover:text-black transition-colors h-[40px] w-[40px] md:h-[44px] md:w-[44px] flex items-center justify-center" title="Live Speech Chat" aria-label="Toggle live voice chat">
                         <i class="fas fa-microphone text-sm md:text-base"></i>
                     </button>
 
-                    <textarea id="messageInput" aria-label="Message" class="w-full max-h-48 min-h-[40px] md:min-h-[44px] bg-transparent text-gray-100 placeholder-cyan-700/50 px-3 md:px-4 py-2 md:py-2.5 outline-none resize-none leading-relaxed font-mono text-[13px] md:text-sm" placeholder="Message your friend... 🤍" rows="1"></textarea>
+                    <textarea id="messageInput" aria-label="Message" class="w-full max-h-48 min-h-[40px] md:min-h-[44px] bg-transparent text-gray-100 placeholder-cyan-700/50 px-3 md:px-4 py-2 md:py-2.5 outline-none resize-none leading-relaxed font-mono text-[13px] md:text-sm" placeholder="Message your friend... 🤍" data-i18n-ph="ph" rows="1"></textarea>
                     
                     <button id="sendButton" aria-label="Send message" class="flex-none p-2 rounded bg-transparent border border-cyan-500 text-cyan-400 hover:bg-cyan-500 hover:text-black transition-colors disabled:opacity-50 disabled:cursor-not-allowed h-[40px] w-[40px] md:h-[44px] md:w-[44px] flex items-center justify-center">
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-4 h-4 md:w-4 md:h-4 -rotate-90">
                             <path d="M3.478 2.404a.75.75 0 00-.926.941l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 60.519 60.519 0 0018.445-8.986.75.75 0 000-1.218A60.517 60.517 0 003.478 2.404z" />
                         </svg>
                     </button>
+                </div>
+                <div class="about-bar">
+                    <button id="about-open" type="button" class="about-link" aria-haspopup="dialog" data-i18n="aboutLink">ⓘ About · Team</button>
+                    <a id="perf-link" class="about-link" href="/performance" data-i18n="perfLink">📊 Performance</a>
+                    <span class="about-link hint" aria-hidden="true" data-i18n="talkHint">🎙 Space = talk</span>
+                    <button id="sfx-toggle" type="button" class="about-link" aria-pressed="true" title="Sounds on">🔊</button>
+                    <span id="emotion-badge" class="about-link hidden" role="status" title="What your voice sounded like in your last spoken message"></span>
                 </div>
             </div>
         </footer>
@@ -71,13 +83,14 @@
                 <button id="play-pause-btn" class="btn border-cyan-400 text-cyan-400 px-4"><i class="fas fa-play"></i></button>
                 <button id="next-btn" class="btn">NEXT &gt;</button>
             </div>
+            <label class="music-vol-row"><i class="fas fa-volume-low" aria-hidden="true"></i><input type="range" class="music-volume" min="0" max="100" step="1" value="38" aria-label="Music volume"></label>
         </div>
     </div>
 
     <div id="rooms-modal" class="fixed inset-0 z-[150] hidden bg-black opacity-0 transition-opacity duration-500 font-sans">
         
         <div id="rooms-menu-view" class="r-active absolute inset-0 transition-opacity duration-1000">
-            <img src="https://raw.githubusercontent.com/PruthviHG/lofi-website/9f93176abf5146529d13a5d6693ec4bbe8840948/images/arttower-architecture-3204688.jpg" class="absolute w-full h-full object-cover brightness-[0.6] z-[1]">
+            <img loading="lazy" decoding="async" src="https://raw.githubusercontent.com/PruthviHG/lofi-website/9f93176abf5146529d13a5d6693ec4bbe8840948/images/arttower-architecture-3204688.jpg" class="absolute w-full h-full object-cover brightness-[0.6] z-[1]">
             <button onclick="closeRooms()" class="absolute top-6 left-6 z-[100] text-white font-mono border border-white/30 px-4 py-2 text-xs tracking-widest rounded bg-black/50 hover:bg-white hover:text-black transition">EXIT ROOMS</button>
             <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[2] flex flex-wrap gap-5 justify-center max-w-[900px] w-[90%]" id="rooms-gallery-grid"></div>
         </div>
@@ -93,9 +106,11 @@
         </div>
 
         <div id="rooms-music-player" class="absolute z-[30] flex items-center">
-            <button class="text-white/70 hover:text-cyan-400 transition-colors cursor-pointer" onclick="prevTrack()"><i class="fas fa-backward"></i></button>
-            <button class="text-white/70 hover:text-cyan-400 transition-colors cursor-pointer" id="rooms-local-play"><i class="fas fa-pause"></i></button>
-            <button class="text-white/70 hover:text-cyan-400 transition-colors cursor-pointer" onclick="nextTrack()"><i class="fas fa-forward"></i></button>
+            <span id="rooms-track" class="rooms-track" aria-live="polite"></span>
+            <button class="text-white/70 hover:text-cyan-400 transition-colors cursor-pointer" onclick="prevTrack()" aria-label="Previous track"><i class="fas fa-backward"></i></button>
+            <button class="text-white/70 hover:text-cyan-400 transition-colors cursor-pointer" id="rooms-local-play" aria-label="Play music"><i class="fas fa-play"></i></button>
+            <button class="text-white/70 hover:text-cyan-400 transition-colors cursor-pointer" onclick="nextTrack()" aria-label="Next track"><i class="fas fa-forward"></i></button>
+            <input type="range" class="music-volume rooms-volume" min="0" max="100" step="1" value="38" aria-label="Music volume">
         </div>
     </div>
 
@@ -113,7 +128,7 @@
                 <button class="arcade-btn btn-defend font-mono" onclick="prepareGame('defend')">PULSE DEFENDER <span class="btn-desc">Shoot anomalies</span></button>
                 <button class="arcade-btn btn-breaker font-mono" onclick="prepareGame('breaker')">NEON BREAKER <span class="btn-desc">Paddle physics</span></button>
                 <button class="arcade-btn btn-dash font-mono" onclick="prepareGame('dash')">HYPER DASH <span class="btn-desc">Tunnel navigation</span></button>
-                <button class="arcade-btn btn-blast font-mono" onclick="prepareGame('blast')">BLOCK BLAST <span class="btn-desc">Drag, fill lines, blast</span></button>
+                <button class="arcade-btn btn-blast font-mono" onclick="prepareGame('blast')">BLOCK BLAST <span class="btn-desc">Drag &amp; clear lines</span></button>
                 <button class="arcade-btn btn-hike font-mono" onclick="prepareGame('hike')">ZEN HIKE <span class="btn-desc">WASD to explore</span></button>
                 <button class="arcade-btn btn-farm font-mono" onclick="prepareGame('farm')">NEON FARM <span class="btn-desc">Plant and harvest</span></button>
                 <button class="arcade-btn btn-breathe font-mono" onclick="prepareGame('breathe')">BOX BREATHING <span class="btn-desc">Find your center</span></button>
@@ -142,31 +157,83 @@
         </div>
     </div>
 
-    <div id="help-modal" class="hidden fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4" role="dialog" aria-modal="true" aria-labelledby="help-title">
-        <div class="help-card">
-            <div class="flex justify-between items-center mb-3">
-                <h2 id="help-title" class="font-mono text-sm font-bold text-amber-300 tracking-widest">/// YOU ARE NOT ALONE</h2>
-                <button onclick="closeHelpModal()" class="text-gray-400 hover:text-white" aria-label="Close"><i class="fas fa-times"></i></button>
+    <div id="auth-overlay" class="hidden fixed inset-0 z-[120] flex items-center justify-center p-4 overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="auth-title">
+        <div class="auth-bg"></div>
+        <div class="auth-top">
+            <select id="auth-lang" aria-label="Language" class="text-[10px] font-mono text-cyan-400 bg-transparent border border-cyan-400/50 rounded px-1 py-1 max-w-[110px] outline-none"></select>
+            <button type="button" onclick="openHelpModal()" class="text-[9px] font-mono tracking-widest text-amber-300 border border-amber-300/60 hover:bg-amber-300 hover:text-black px-2 py-1 rounded transition-all" data-i18n="nHelp">NEED HELP?</button>
+        </div>
+        <div class="auth-card">
+            <div class="auth-logo">M</div>
+            <h2 id="auth-title" class="auth-title" data-i18n="aWelcome">Welcome</h2>
+            <p class="auth-sub" id="auth-sub" data-i18n="aSub">Sign in to open your private safe space.</p>
+            <div id="auth-notice" class="auth-notice hidden" role="status"></div>
+            <div id="auth-google-wrap" class="hidden">
+                <div id="auth-google-btn" class="auth-google"></div>
+                <div class="auth-or"><span data-i18n="aOr">or</span></div>
             </div>
-            <p class="text-xs text-gray-300 font-mono leading-relaxed mb-4">If you are in danger or thinking about harming yourself, please contact your local emergency number (112 in India, 911 in the US) or a crisis line below. Talking to a real person can help right now.</p>
-            <ul id="help-list" class="help-list"></ul>
-            <p class="text-[10px] text-gray-500 font-mono mt-4">Numbers can change, so please verify locally. Mindsence is an AI and cannot call for help on your behalf.</p>
+            <form id="auth-form" novalidate>
+                <label class="auth-label" for="auth-email" data-i18n="aEmail">Email</label>
+                <input id="auth-email" name="email" type="email" inputmode="email" autocomplete="email" autocapitalize="off" spellcheck="false" class="auth-input" required>
+                <div id="auth-pass-row">
+                    <label class="auth-label" for="auth-pass" id="auth-pass-label" data-i18n="aPass">Password</label>
+                    <input id="auth-pass" name="password" type="password" autocomplete="current-password" class="auth-input" minlength="8" maxlength="128">
+                </div>
+                <div id="auth-error" class="auth-error hidden" role="alert"></div>
+                <button id="auth-submit" type="submit" class="auth-submit" data-i18n="aSignIn">Sign in</button>
+            </form>
+            <div class="auth-links">
+                <button type="button" id="auth-forgot" class="auth-link" data-i18n="aForgot">Forgot password?</button>
+                <button type="button" id="auth-switch" class="auth-link" data-i18n="aSwitchUp">New here? Create an account</button>
+            </div>
         </div>
     </div>
 
-    <script src="js/config.js"></script>
-    <script src="js/core.js"></script>
-    <script src="js/safety.js"></script>
-    <script src="js/voice.js"></script>
-    <script src="js/tts.js"></script>
-    <script src="js/llm.js"></script>
-    <script src="js/chat.js"></script>
-    <script src="js/audio.js"></script>
-    <script src="js/scene3d.js"></script>
-    <script src="js/rooms.js"></script>
-    <script src="js/games.js"></script>
-    <script src="js/idle.js"></script>
-    <script src="js/feedback.js"></script>
-    <script src="js/mime.js"></script>
+    <div id="help-modal" class="hidden fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4" role="dialog" aria-modal="true" aria-labelledby="help-title">
+        <div class="help-card">
+            <div class="flex justify-between items-center mb-3">
+                <h2 id="help-title" data-i18n="hTitle" class="font-mono text-sm font-bold text-amber-300 tracking-widest">/// YOU ARE NOT ALONE</h2>
+                <button onclick="closeHelpModal()" class="text-gray-400 hover:text-white" aria-label="Close"><i class="fas fa-times"></i></button>
+            </div>
+            <p class="text-xs text-gray-300 font-mono leading-relaxed mb-4" data-i18n="hBody">If you are in danger or thinking about harming yourself, please contact your local emergency number (112 in India, 911 in the US) or a crisis line below. Talking to a real person can help right now.</p>
+            <ul id="help-list" class="help-list"></ul>
+            <p class="text-[10px] text-gray-500 font-mono mt-4" data-i18n="hNote">Numbers can change, so please verify locally. Mindsence is an AI and cannot call for help on your behalf.</p>
+        </div>
+    </div>
+
+    <script src="js/core/config.js" defer></script>
+    <script src="js/i18n/locales.js" defer></script>
+    <script src="js/i18n/locales2.js" defer></script>
+    <script src="js/i18n/locales3.js" defer></script>
+    <script src="js/i18n/locales4.js" defer></script>
+    <script src="js/i18n/i18n.js" defer></script>
+    <script src="js/core/wav.js" defer></script>
+    <script src="js/core/core.js" defer></script>
+    <script src="js/chat/safety.js" defer></script>
+    <script src="js/voice/voice.js" defer></script>
+    <script src="js/chat/simple.js" defer></script>
+    <script src="js/i18n/stories_i18n.js" defer></script>
+    <script src="js/chat/stories.js" defer></script>
+    <script src="js/chat/webllm.js" defer></script>
+    <script src="js/voice/tts.js" defer></script>
+    <script src="js/core/auth.js" defer></script>
+    <script src="js/chat/llm.js" defer></script>
+    <script src="js/chat/chat.js" defer></script>
+    <script src="js/chat/companion.js" defer></script>
+    <script src="js/voice/audio.js" defer></script>
+    <script src="assets/vendor/three.min.js" defer></script>
+    <script src="js/ui/scene3d.js" defer></script>
+    <script src="js/features/rooms.js" defer></script>
+    <script src="js/core/sfx.js" defer></script>
+    <script src="js/features/games.js" defer></script>
+    <script src="js/features/blast.js" defer></script>
+    <script src="js/core/idle.js" defer></script>
+    <script src="js/features/feedback.js" defer></script>
+    <script src="js/chat/mime.js" defer></script>
+    <script src="js/chat/commands.js" defer></script>
+    <script src="js/chat/attach.js" defer></script>
+    <script src="js/core/uisound.js" defer></script>
+    <script src="js/features/about.js" defer></script>
+    <script src="js/core/nav.js" defer></script>
 </body>
 </html>

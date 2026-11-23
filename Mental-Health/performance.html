@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mindsence · Performance</title>
+<link rel="stylesheet" href="/performance.css">
+</head>
+<body>
+<div class="shell">
+  <aside class="rail" aria-label="Sections">
+    <button class="back" id="back" type="button" aria-label="Back to Mindsence"><span aria-hidden="true">←</span> Mindsence</button>
+    <div class="brand"><span class="logo" aria-hidden="true"></span><div><b>Performance</b><small id="stamp"></small></div></div>
+    <nav id="nav">
+      <a href="#overview" class="on">Overview</a>
+      <a href="#analyzer">Live analyzer</a>
+      <a href="#critical">Critical situations</a>
+      <a href="#safety">Safety accuracy</a>
+      <a href="#languages">Languages</a>
+      <a href="#speed">Speed</a>
+      <a href="#compare">Comparison</a>
+      <a href="#limits">Method &amp; limits</a>
+    </nav>
+    <p class="railnote">Measured by running the project's own code. Nothing on this page is typed in by hand.</p>
+  </aside>
+
+  <main>
+    <section id="overview" class="sec">
+      <div class="head"><p class="eyebrow">OVERVIEW</p><h1>How well does Mindsence actually work?</h1>
+        <p class="lead">Accuracy, speed and safety, measured with <code>tools/benchmark.js</code> and a real browser. Where a result is not flattering, it is shown anyway.</p></div>
+      <div class="kpis" id="kpis"></div>
+      <div class="gauges" id="gauges"></div>
+    </section>
+
+    <section id="analyzer" class="sec">
+      <div class="head"><p class="eyebrow">LIVE ANALYZER</p><h2>Type a message. Watch the real safety check run.</h2>
+        <p class="sub">This runs Mindsence's actual detector in your browser, right now, on this page. Nothing is sent anywhere.</p></div>
+      <div class="analyzer">
+        <div class="inbox">
+          <label for="an-input" class="lbl">MESSAGE</label>
+          <textarea id="an-input" rows="3" maxlength="500" placeholder="Try: I don't want to live anymore · ನನಗೆ ಬದುಕಲು ಇಷ್ಟವಿಲ್ಲ · मैं बहुत थका हुआ हूँ · this exam is killing me"></textarea>
+          <div class="chips" id="an-chips" aria-label="Examples"></div>
+        </div>
+        <div class="flow" id="an-flow" aria-label="How the message is routed">
+          <div class="node" data-n="in"><b>1</b><span>Message</span></div><i class="arr"></i>
+          <div class="node" data-n="norm"><b>2</b><span>Normalise</span></div><i class="arr"></i>
+          <div class="node" data-n="check"><b>3</b><span>Safety check<small>on device</small></span></div><i class="arr"></i>
+          <div class="node branch" data-n="out"><b>4</b><span id="an-route">Route</span></div>
+        </div>
+        <div class="result" id="an-result" aria-live="polite"></div>
+      </div>
+    </section>
+
+    <section id="critical" class="sec">
+      <div class="head"><p class="eyebrow">CRITICAL SITUATIONS</p><h2>What happens when someone is in trouble</h2>
+        <p class="sub">Each scenario below is run live against the real detector when you open this page. The aim is simple: real danger must reach a caring message and a helpline, and everyday stress must not be treated as an emergency.</p></div>
+      <div class="critgrid">
+        <div class="card"><h3>Live scenario test <span class="pill" id="crit-score"></span></h3><div class="tablewrap"><table id="crit-table"></table></div></div>
+        <div class="card"><h3>What Mindsence does, in order</h3>
+          <ol class="steps">
+            <li><b>Catches it on the device.</b> Before any AI model, so it works even if the model is offline or wrong. Median <span id="s-check"></span>.</li>
+            <li><b>Shows a fixed, caring message</b> in the person's language with tap-to-call helplines, straight away (about <span id="s-crisis"></span>).</li>
+            <li><b>Switches to “care mode”:</b> no jokes, gentle tone, and the NEED HELP? button stays in the header.</li>
+            <li><b>Offers real stories and videos</b> from people who came through hard times, with sources, once the first message has landed.</li>
+            <li><b>Never claims to be a person or a therapist,</b> and keeps pointing to real help.</li>
+          </ol>
+          <div class="callout warn" id="held-note"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="safety" class="sec">
+      <div class="head"><p class="eyebrow">SAFETY ACCURACY</p><h2>Does it notice crisis messages?</h2>
+        <p class="sub">160 sentences across 14 languages: direct and indirect crisis wording, and harmless sentences that must not trigger it.</p></div>
+      <div class="grid2">
+        <figure class="card"><h3>Crisis messages caught</h3><div id="chart-recall"></div><figcaption>“First look” is the result the first time each set was run, before any fix.</figcaption></figure>
+        <figure class="card"><h3>Heat-map by language</h3><div id="heat-crisis" class="heat"></div><figcaption>Accuracy on both sets, after fixes. Hover or focus a cell for the exact value.</figcaption></figure>
+      </div>
+    </section>
+
+    <section id="languages" class="sec">
+      <div class="head"><p class="eyebrow">LANGUAGES</p><h2>Does it know who it is talking to?</h2>
+        <p class="sub">Language is detected from what is typed so replies, voice and helplines match. Latin-script languages that share words (Spanish, French, Portuguese, German) are the hard part.</p></div>
+      <div class="grid2">
+        <figure class="card"><h3>Detection accuracy</h3><div id="chart-lang"></div><figcaption>56 test sentences, after fixes.</figcaption></figure>
+        <figure class="card"><h3>Fresh sentences, never tuned on</h3><div id="chart-lang-held"></div><figcaption>The honest check: 18 new sentences.</figcaption></figure>
+      </div>
+    </section>
+
+    <section id="speed" class="sec">
+      <div class="head"><p class="eyebrow">SPEED</p><h2>Where the milliseconds go</h2>
+        <p class="sub">Measured on localhost with headless Chromium and no AI model attached. Real use adds your network and the model you choose. What matters is what does <em>not</em> wait on anything: the safety check and the crisis screen.</p></div>
+      <div class="grid2 wide">
+        <figure class="card"><h3>Time per step (log scale)</h3><div id="chart-speed"></div><figcaption>Each gridline is ten times larger. Shorter is faster.</figcaption></figure>
+        <div class="card"><h3>Size and coverage</h3><div class="mini" id="weight"></div></div>
+      </div>
+    </section>
+
+    <section id="compare" class="sec">
+      <div class="head"><p class="eyebrow">COMPARISON</p><h2>What it offers next to other kinds of products</h2>
+        <p class="sub">A design comparison, not a head-to-head test. The Mindsence column is checked against this project's code and tests. The other columns describe each <em>category</em> in general; we have not tested any named product.</p></div>
+      <div class="card"><div class="tablewrap"><table id="matrix"></table></div>
+      <p class="legend"><i class="dot full"></i> yes &nbsp; <i class="dot half"></i> partly / depends &nbsp; <i class="dot none"></i> usually not</p></div>
+    </section>
+
+    <section id="limits" class="sec">
+      <div class="head"><p class="eyebrow">METHOD &amp; LIMITS</p><h2>What these numbers do not tell you</h2></div>
+      <ul class="limits">
+        <li><b>The test sets are small and written by the team.</b> 160 crisis sentences and 74 language sentences. They show direction, not a guarantee.</li>
+        <li><b>The 100% scores are on sentences we fixed the detector against.</b> The honest signal is the first-look result: on fresh wording the detector caught only a quarter of crisis messages the first time. Real people phrase things in ways nobody predicted, so some will still be missed. Keyword matching is a safety net, not a clinician.</li>
+        <li><b>We did not measure reply quality or the voice-emotion model.</b> Both depend on the AI and third-party voice model you connect, and the voice-emotion model is trained on English speech.</li>
+        <li><b>We did not benchmark other products.</b> A fair comparison needs the same sentences run through each one.</li>
+        <li><b>Mindsence is a supportive companion, not a doctor or therapist.</b> If you are in danger, call your local emergency number or a crisis line.</li>
+      </ul>
+      <pre>node tools/benchmark.js                  # accuracy, speed, size  → js/perf/perf_data.js
+python tools/benchmark_browser.py        # page load, crisis screen, reply timings
+node tools/benchmark.js                  # merge the browser results, then reload this page</pre>
+    </section>
+  </main>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/animejs@4.0.2/dist/bundles/anime.umd.min.js" defer onerror="window.__noAnime=1"></script>
+<script src="/js/core/config.js" defer></script>
+<script src="/js/i18n/locales.js" defer></script><script src="/js/i18n/locales2.js" defer></script><script src="/js/i18n/locales3.js" defer></script><script src="/js/i18n/locales4.js" defer></script>
+<script src="/js/i18n/i18n.js" defer></script><script src="/js/chat/safety.js" defer></script>
+<script src="/js/i18n/stories_i18n.js" defer></script><script src="/js/chat/stories.js" defer></script>
+<script src="/js/perf/perf_data.js" defer></script><script src="/js/perf/perf.js" defer></script>
+</body>
+</html>

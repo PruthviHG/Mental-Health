@@ -1,0 +1,8 @@
+/* Small additions that are not in style.css: the song box and a scrolling help dialog on short screens. */
+.song-form { display: flex; gap: 6px; width: 100%; }
+.song-input { flex: 1; min-width: 0; font: 12px 'JetBrains Mono', monospace; color: #e5e7eb; background: rgba(0,0,0,.45); border: 1px solid rgba(69,243,255,.3); border-radius: 999px; padding: 4px 12px; outline: none; }
+.song-input:focus { border-color: #45f3ff; }
+.song-link { display: inline-block; margin-top: 6px; color: #45f3ff; text-decoration: underline; word-break: break-word; }
+
+/* keeps the help dialog usable on short screens: it scrolls inside instead of running off the top */
+.help-card { max-height: 92vh; overflow-y: auto; }

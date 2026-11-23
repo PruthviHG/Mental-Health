@@ -1,0 +1,20 @@
+{
+ "browser": {
+  "healthMs": 0.9,
+  "loadMs": 169.8,
+  "loadP95": 234.6,
+  "warmLoadMs": 49.8,
+  "warmLoadP95": 115.2,
+  "crisisMs": 89.0,
+  "crisisP95": 132.5,
+  "replyMs": 79.0,
+  "replyP95": 104.6,
+  "runs": {
+   "load": 8,
+   "warm": 8,
+   "crisis": 10,
+   "reply": 10
+  },
+  "note": "localhost, headless Chromium, no AI model (built-in fallback replies)"
+ }
+}

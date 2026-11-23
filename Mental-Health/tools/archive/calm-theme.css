@@ -1,0 +1,170 @@
+/* Mindsence - calm theme. Loaded after style.css and tailwind.css, so it only has to be more specific, never !important.
+   Direction: a quiet room at night. Ink-blue surfaces, one soft teal accent, amber kept for "Need help" only.
+   Design rules follow the "unslop" pass (CC BY 4.0, github.com/heydamir/unslop): real type scale, no neon glows,
+   no looping pulses, sentence-case labels, borders only where they help, motion only to explain something.
+   Games and rooms keep their own colours on purpose. */
+
+:root {
+    --bg-dark: #0e1218;
+    --ink: #0e1218;
+    --surface: #151b24;
+    --surface-2: #1c2430;
+    --line: rgba(255, 255, 255, .09);
+    --line-strong: rgba(255, 255, 255, .16);
+    --text: #e8ecf2;
+    --muted: #9aa5b5;
+    --accent: #86cfc9;
+    --accent-ink: #0a1514;
+    --warm: #f0b866;
+    --radius: 12px;
+    --ease: cubic-bezier(.2, .7, .2, 1);
+}
+html, body { background: var(--ink); color: var(--text); }
+::selection { background: rgba(134, 207, 201, .35); color: #fff; }
+::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, .16); }
+::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, .3); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---------- header ---------- */
+#main-ui header { padding-block: 14px; }
+#main-ui header h1 { font-size: 17px; font-weight: 600; letter-spacing: -.01em; color: var(--text); }
+#main-ui header > div:first-child > div:first-child {
+    width: 30px; height: 30px; border: 0; border-radius: 9px; background: var(--surface-2); box-shadow: none;
+    color: var(--accent); font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 600;
+}
+#main-ui header button, #main-ui header select {
+    font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 500; letter-spacing: 0; text-transform: none; line-height: 1.2;
+    color: var(--muted); background: transparent; border: 1px solid transparent; border-radius: 8px; padding: 7px 10px;
+    transition: background-color .15s, color .15s, border-color .15s;
+}
+#main-ui header select { max-width: 120px; cursor: pointer; }
+#main-ui header select option { background: var(--surface); color: var(--text); }
+#main-ui header button:hover, #main-ui header select:hover { background: rgba(255, 255, 255, .06); color: var(--text); border-color: transparent; }
+#main-ui header .keep-hue { color: var(--warm); border-color: rgba(240, 184, 102, .35); }
+#main-ui header .keep-hue:hover { background: rgba(240, 184, 102, .12); color: var(--warm); border-color: rgba(240, 184, 102, .5); }
+#main-ui header #ai-btn { color: var(--accent); }
+#main-ui header #user-chip { max-width: 150px; font-weight: 400; }
+#status-dot { background: var(--accent); box-shadow: none; animation: none; width: 7px; height: 7px; }
+#status-label { font-family: 'Inter', sans-serif; font-size: 12px; letter-spacing: 0; color: var(--muted); }
+
+/* ---------- conversation ---------- */
+#chatbox { max-width: 46rem; row-gap: 22px; }
+#chatbox .ai-bubble { border-left: 0; padding: 0; background: transparent; }
+#chatbox .ai-text { color: var(--text); font-size: 16px; line-height: 1.65; max-width: 62ch; }
+#chatbox .ai-text code { background: var(--surface-2); border: 0; color: var(--text); }
+#chatbox .msg-enter > div.flex-none {                                            /* the little "M" avatar */
+    background: var(--surface-2); border: 0; box-shadow: none; color: var(--accent); border-radius: 9px;
+    font-family: 'Inter', sans-serif; font-weight: 600;
+}
+#chatbox .justify-end > div {                                                   /* what you wrote */
+    background: var(--surface-2); border: 1px solid var(--line); color: var(--text); box-shadow: none;
+    font-family: 'Inter', sans-serif; font-size: 15px; line-height: 1.6; border-radius: 16px 16px 4px 16px; padding: 10px 16px;
+}
+#chatbox .ai-bubble > div:last-child { border-top: 0; margin-top: 6px; padding-top: 0; justify-content: flex-start; font-family: 'Inter', sans-serif; font-size: 12px; color: var(--muted); }
+#chatbox .ai-bubble > div:last-child button:hover { color: var(--text); }
+
+/* ---------- composer ---------- */
+footer > div > .absolute { display: none; }                                    /* the blurry glow behind the box */
+footer .relative.flex {
+    background: var(--surface); border: 1px solid var(--line-strong); border-radius: 16px; box-shadow: 0 8px 30px rgba(0, 0, 0, .35);
+    padding: 6px; transition: border-color .2s;
+}
+footer .relative.flex:focus-within { border-color: rgba(134, 207, 201, .6); }
+#messageInput { font-family: 'Inter', sans-serif; font-size: 16px; color: var(--text); line-height: 1.5; }
+#messageInput::placeholder { color: var(--muted); opacity: .75; }
+#liveVoiceBtn, #sendButton {
+    border: 0; border-radius: 11px; background: var(--surface-2); color: var(--accent); transition: background-color .15s, color .15s;
+}
+#liveVoiceBtn:hover, #sendButton:hover:not(:disabled) { background: var(--accent); color: var(--accent-ink); }
+.about-bar { gap: 6px; padding-top: 8px; }
+.about-link { font: 500 12px 'Inter', sans-serif; letter-spacing: 0; color: var(--muted); }
+.about-link:hover, .about-link:focus-visible { color: var(--text); background: rgba(255, 255, 255, .06); }
+.about-link.hint:hover { color: var(--muted); }
+
+/* ---------- music pill + player ---------- */
+#player-toggle {
+    font: 500 13px 'Inter', sans-serif; letter-spacing: 0; color: var(--text); background: var(--surface); border: 1px solid var(--line-strong);
+    box-shadow: none; padding: 9px 16px;
+}
+#player-toggle:hover { background: var(--surface-2); color: var(--text); box-shadow: none; }
+#floating-player { background: var(--surface); border: 1px solid var(--line-strong); border-left: 1px solid var(--line-strong); box-shadow: 0 16px 40px rgba(0, 0, 0, .45); border-radius: 14px; backdrop-filter: none; }
+#audio-status { font-family: 'Inter', sans-serif; letter-spacing: 0; font-weight: 500; color: var(--muted); }
+
+/* ---------- sign-in ---------- */
+#auth-overlay { background: rgba(10, 13, 18, .88); }
+.auth-card { background: var(--surface); border: 1px solid var(--line-strong); border-radius: 18px; box-shadow: 0 20px 60px rgba(0, 0, 0, .5); font-family: 'Inter', sans-serif; padding: 32px 28px 26px; }
+.auth-logo { border: 0; background: var(--surface-2); color: var(--accent); border-radius: 10px; box-shadow: none; font-family: 'Inter', sans-serif; width: 38px; height: 38px; }
+.auth-title { font-size: 22px; font-weight: 600; letter-spacing: -.01em; }
+.auth-sub { font-size: 14px; color: var(--muted); }
+.auth-label { font-size: 13px; font-weight: 500; letter-spacing: 0; color: var(--muted); }
+.auth-input { background: var(--ink); border: 1px solid var(--line-strong); border-radius: 10px; font-family: 'Inter', sans-serif; }
+.auth-input:focus { border-color: var(--accent); box-shadow: none; outline: 2px solid rgba(134, 207, 201, .35); outline-offset: 0; }
+.auth-submit { background: var(--accent); color: var(--accent-ink); border-radius: 10px; font-size: 15px; font-weight: 600; letter-spacing: 0; transition: filter .15s; }
+.auth-submit:hover:not(:disabled) { filter: brightness(1.08); }
+.auth-link { color: var(--muted); font-size: 13px; }
+.auth-link:hover { color: var(--text); }
+.auth-top select { font-family: 'Inter', sans-serif; font-size: 13px; color: var(--muted); border-color: var(--line-strong); border-radius: 8px; padding: 6px 8px; }
+
+/* ---------- spotlight on game / room cards (an idea from ReactBits' SpotlightCard, rewritten without React) ---------- */
+.spot { position: relative; isolation: isolate; }
+.spot::after {
+    content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: -1;
+    background: radial-gradient(180px circle at var(--mx, 50%) var(--my, 50%), rgba(255, 255, 255, .09), transparent 70%);
+    opacity: 0; transition: opacity .25s;
+}
+.spot:hover::after { opacity: 1; }
+
+/* ---------- word-by-word blur-in for the greeting (idea from ReactBits' BlurText) ---------- */
+.blur-word { display: inline-block; opacity: 0; filter: blur(8px); transform: translateY(6px); animation: blurIn .55s var(--ease) forwards; }
+@keyframes blurIn { to { opacity: 1; filter: blur(0); transform: none; } }
+
+@media (prefers-reduced-motion: reduce) {
+    .blur-word { animation: none; opacity: 1; filter: none; transform: none; }
+    .spot::after { transition: none; }
+}
+@media (max-width: 640px) {
+    #main-ui header { padding-inline: 12px; }
+    #main-ui header button, #main-ui header select { padding: 6px 8px; font-size: 12px; }
+}
+
+/* ---------- feedback ---------- */
+#fb-fab { background: var(--surface); border: 1px solid var(--line-strong); box-shadow: none; color: var(--muted); }
+#fb-fab:hover { background: var(--surface-2); color: var(--text); border-color: var(--line-strong); }
+#fb-panel { background: var(--surface); border: 1px solid var(--line-strong); border-radius: 16px; box-shadow: 0 16px 40px rgba(0, 0, 0, .5); backdrop-filter: none; font-family: 'Inter', sans-serif; }
+#fb-panel h3 { color: var(--text); font: 600 15px 'Inter', sans-serif; letter-spacing: 0; }
+#fb-panel input, #fb-panel textarea { background: var(--ink); border: 1px solid var(--line-strong); border-radius: 10px; font-family: 'Inter', sans-serif; font-size: 14px; color: var(--text); }
+#fb-panel input:focus, #fb-panel textarea:focus { border-color: var(--accent); outline: none; }
+#fb-submit { background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 10px; font: 600 14px 'Inter', sans-serif; letter-spacing: 0; padding: 10px; }
+#fb-submit:hover { background: var(--accent); filter: brightness(1.08); }
+#fb-status { font-family: 'Inter', sans-serif; font-size: 12px; color: var(--muted); }
+
+/* ---------- small screens: the header may wrap, and "Need help?" always stays visible and first ---------- */
+@media (max-width: 767px) {
+    #main-ui header { flex-wrap: wrap; row-gap: 8px; }
+    #main-ui header > div:last-child { flex: 1 1 100%; flex-wrap: wrap; justify-content: flex-start; gap: 2px 4px; min-width: 0; }
+    #main-ui header .keep-hue { order: -1; }
+    #status-label { display: none; }
+}
+
+/* ---------- "Need help?" card: the one screen that must be easy to read when someone is struggling ---------- */
+#help-modal { background: rgba(8, 11, 16, .86); backdrop-filter: blur(6px); }
+.help-card { background: var(--surface); border: 1px solid var(--line-strong); border-radius: 18px; box-shadow: 0 24px 70px rgba(0, 0, 0, .55); padding: 22px 22px 18px; font-family: 'Inter', sans-serif; }
+.help-card #help-title { font: 600 20px 'Inter', sans-serif; letter-spacing: -.01em; color: var(--text); }
+.help-card p { font-family: 'Inter', sans-serif; font-size: 14px; line-height: 1.6; color: var(--muted); }
+.help-card #help-title ~ *, .help-card button { font-family: 'Inter', sans-serif; }
+.help-item { background: var(--ink); border: 1px solid var(--line); border-radius: 12px; }
+.help-region { color: var(--warm); font: 600 11px 'Inter', sans-serif; letter-spacing: .04em; }
+.help-name { color: var(--muted); font: 400 13px 'Inter', sans-serif; }
+.help-contact { color: var(--text); font: 600 17px 'Inter', sans-serif; }
+.help-card .text-gray-500 { font-size: 12px; }
+
+/* ---------- About ---------- */
+.about-modal { background: rgba(8, 11, 16, .86); }
+.about-card { background: var(--surface); border: 1px solid var(--line-strong); border-radius: 18px; box-shadow: 0 24px 70px rgba(0, 0, 0, .55); }
+.about-title { font: 600 18px 'Inter', sans-serif; letter-spacing: -.01em; color: var(--text); }
+.about-chip { font: 500 12px 'Inter', sans-serif; color: var(--muted); border-color: var(--line-strong); }
+.about-sec { font: 600 12px 'Inter', sans-serif; letter-spacing: .02em; text-transform: none; color: var(--muted); }
+.about-x { border: 0; border-radius: 8px; }
+.about-x:hover { background: rgba(255, 255, 255, .08); color: var(--text); }
+.help-card { max-height: calc(100dvh - 32px); overflow-y: auto; overscroll-behavior: contain; }   /* on a short screen the card scrolls instead of being cut off */
+.help-item { padding: 9px 12px; }

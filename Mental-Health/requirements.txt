@@ -1,7 +1,5 @@
+# Everything needed to run Mindsence. Small and quick to install on Windows, macOS and Linux.
 flask>=3.0
 flask-cors>=4.0
 edge-tts>=6.1
-torch>=2.1
-transformers>=4.40
-librosa>=0.10
-numpy>=1.24
+brotli>=1.1            # optional: smaller downloads (Mindsence falls back to gzip without it)
